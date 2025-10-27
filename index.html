@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Демо-страница Zver</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            color: #333;
+            font-size: 16px;
+        }
+        h1 {
+            color: #0066cc;
+        }
+        .container {
+            width: 600px;
+            background-color: #ffffff;
+            padding: 20px;
+        }
+        .highlight {
+            background-color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Добро пожаловать в Zver!</h1>
+        <p>Это демо-страница, созданная ижка Zver.</p>
+
+        <h2>Возможности движка:</h2>
+        <ul>
+            <li>Парсинг HTML с помощью <strong>kuchikiki</strong></li>
+            <li>Обработка CSS стилей</li>
+            <li>Вычисление layout</li>
+            <li>Поддержка блоковых и строчных элементов</li>
+        </ul>
+
+        <div class="highlight">
+            <p>Этот текст выделен желтым фоном через CSS класс.</p>
+        </div>
+
+        <p>Страница содержит различные элементы: заголовки, параграфы, списки и div-блоки.</p>
+
+        <div id="footer">
+            <p><em>Создано для демонстрации возможностей Zver</em></p>
+        </div>
+    </div>
+
+    <script>
+        console.log("Zver JavaScript test - console.log работает!");
+        console.log("Привет из Boa JavaScript engine");
+
+        // Тестируем document.querySelector
+        var h1 = document.querySelector("h1");
+        console.log("Найден H1 элемент");
+
+        var highlight = document.querySelector(".highlight");
+        console.log("Найден highlight элемент");
+
+        // setTimeout пока не реализован
+    </script>
+</body>
+</html>

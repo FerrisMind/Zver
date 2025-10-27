@@ -1,17 +1,27 @@
 use std::collections::HashMap;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 
 #[derive(Debug, Clone)]
 pub struct NetworkEngine {
     cache: HashMap<String, String>,
+    client: reqwest::Client,
 }
 
 impl NetworkEngine {
     pub fn new() -> Self {
+        let client = reqwest::Client::builder()
+            .user_agent("Zver/0.1 (reqwest)")
+            .http2_prior_knowledge()
+            .build()
+            .expect("failed to build reqwest client");
+
         Self {
             cache: HashMap::new(),
+            client,
         }
+    }
+
+    pub fn clear_cache_for_url(&mut self, url: &str) {
+        self.cache.remove(url);
     }
 
     pub async fn fetch(&mut self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -19,43 +29,40 @@ impl NetworkEngine {
             return Ok(cached.clone());
         }
 
-        let content = if url.starts_with("http://") {
-            self.fetch_http(url).await?
-        } else if url.starts_with("https://") {
-            return Err("HTTPS не поддерживается в примитивном клиенте".into());
+        let content = if url.starts_with("http://") || url.starts_with("https://") {
+            self.fetch_http_https(url).await?
         } else if url.starts_with("file://") {
             self.fetch_file(url).await?
         } else {
-            self.fetch_file(&format!("file://{url}")).await?
+            self.fetch_file(&format!("file://{}", url)).await?
         };
 
         self.cache.insert(url.to_string(), content.clone());
         Ok(content)
     }
 
-    async fn fetch_http(&self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let url = url.strip_prefix("http://").unwrap_or(url);
-        let (host_port, path) = url.split_once('/').unwrap_or((url, "/"));
-        let (host, port) = host_port
-            .split_once(':')
-            .map(|(host, port)| (host, port.parse().unwrap_or(80)))
-            .unwrap_or((host_port, 80));
+    // Prefetch ресурсов асинхронно
+    pub async fn prefetch_resources(&self, urls: Vec<String>) -> Vec<Result<String, Box<dyn std::error::Error>>> {
+        let futures = urls.into_iter().map(|url| {
+            let client = &self.client;
+            async move {
+                let result: Result<String, Box<dyn std::error::Error>> = if url.starts_with("http://") || url.starts_with("https://") {
+                    client.get(&url).send().await?.text().await.map_err(|e| e.into())
+                } else {
+                    // Для файлов используем tokio::fs
+                    tokio::fs::read_to_string(url.strip_prefix("file://").unwrap_or(&url)).await.map_err(|e| e.into())
+                };
+                result
+            }
+        });
 
-        let mut stream = TcpStream::connect((host, port)).await?;
+        futures_util::future::join_all(futures).await
+    }
 
-        let request = format!(
-            "GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nAccept: */*\r\n\r\n"
-        );
-        stream.write_all(request.as_bytes()).await?;
-
-        let mut response = String::new();
-        stream.read_to_string(&mut response).await?;
-
-        if let Some(body_start) = response.find("\r\n\r\n") {
-            Ok(response[body_start + 4..].to_string())
-        } else {
-            Ok(response)
-        }
+    async fn fetch_http_https(&self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
+        let response = self.client.get(url).send().await?;
+        let text = response.text().await?;
+        Ok(text)
     }
 
     async fn fetch_file(&self, url: &str) -> Result<String, Box<dyn std::error::Error>> {

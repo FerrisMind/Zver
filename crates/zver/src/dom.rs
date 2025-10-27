@@ -1,6 +1,9 @@
 use kuchikiki::{traits::TendrilSink, NodeData, NodeRef};
 use std::collections::HashMap;
 
+// Подключаем scraper для продвинутого DOM querying
+use scraper::{Html as ScraperHtml, Selector as ScraperSelector};
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub id: usize,
@@ -26,7 +29,11 @@ pub struct Document {
     pub nodes: HashMap<usize, Node>,
     pub root: Option<usize>,
     next_id: usize,
+    scraper: Option<ScraperHtml>,
 }
+
+unsafe impl Send for Document {}
+unsafe impl Sync for Document {}
 
 impl Document {
     pub fn new() -> Self {
@@ -34,16 +41,21 @@ impl Document {
             nodes: HashMap::new(),
             root: None,
             next_id: 0,
+            scraper: None,
         }
     }
 
     pub async fn parse_html(&mut self, html: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // Сохраняем парсинг для scraper
+        self.scraper = Some(ScraperHtml::parse_document(html));
+
         let dom = kuchikiki::parse_html().one(html);
 
         self.nodes.clear();
         self.root = None;
         self.next_id = 0;
 
+        // dom уже является корневым NodeRef
         let root_id = self.build_tree(&dom);
         self.root = Some(root_id);
 
@@ -92,6 +104,49 @@ impl Document {
     }
 
     pub fn query_selector(&self, selector: &str) -> Vec<usize> {
+        // Если доступен scraper и селектор корректен — используем его для поиска элементов,
+        // затем сопоставляем их с нашими узлами по тегу/id/class.
+        if let Some(doc) = &self.scraper && let Ok(sel) = ScraperSelector::parse(selector) {
+                let mut result_ids = Vec::new();
+                for el in doc.select(&sel) {
+                    let name = el.value().name();
+                    let id_attr = el.value().id();
+                    let class_iter = el.value().classes();
+                    let class_set: Vec<String> = class_iter.map(|c| c.to_string()).collect();
+
+                    // Находим первый подходящий узел (приближенное сопоставление)
+                    if let Some((matched_id, _)) = self
+                        .nodes
+                        .iter()
+                        .find(|(_nid, node)| match node.tag_name.as_deref() {
+                            Some(t) if t == name => {
+                                let id_ok = match id_attr {
+                                    Some(idv) => node
+                                        .attributes
+                                        .get("id")
+                                        .is_some_and(|v| v == idv),
+                                    None => true,
+                                };
+                                let class_ok = if class_set.is_empty() {
+                                    true
+                                } else {
+                                    node.attributes.get("class").map(|cls| {
+                                        let existing: Vec<&str> = cls.split_whitespace().collect();
+                                        class_set.iter().all(|c| existing.iter().any(|e| e == c))
+                                    }).unwrap_or(false)
+                                };
+                                id_ok && class_ok
+                            }
+                            _ => false,
+                        })
+                    {
+                        result_ids.push(*matched_id);
+                    }
+                }
+                return result_ids;
+        }
+
+        // Фоллбек: простые селекторы (#id, .class, tag)
         self.nodes
             .iter()
             .filter_map(|(id, node)| self.matches_selector(node, selector).then_some(*id))
@@ -110,6 +165,10 @@ impl Document {
                 .is_some_and(|class| class.split_whitespace().any(|c| c == &selector[1..])),
             _ => node.tag_name() == Some(selector),
         }
+    }
+
+    pub fn has_scraper(&self) -> bool {
+        self.scraper.is_some()
     }
 }
 

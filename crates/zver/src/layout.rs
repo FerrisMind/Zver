@@ -1,5 +1,6 @@
 use crate::dom::Document;
 use std::collections::HashMap;
+use taffy::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct LayoutNode {
@@ -63,12 +64,15 @@ pub enum Size {
     Percent(f32),
 }
 
-#[derive(Debug)]
 pub struct LayoutEngine {
     viewport_width: f32,
     viewport_height: f32,
     pub layout_tree: Option<LayoutNode>,
+    taffy: TaffyTree<()>,
 }
+
+unsafe impl Send for LayoutEngine {}
+unsafe impl Sync for LayoutEngine {}
 
 impl LayoutEngine {
     pub fn new(viewport_width: f32, viewport_height: f32) -> Self {
@@ -76,6 +80,7 @@ impl LayoutEngine {
             viewport_width,
             viewport_height,
             layout_tree: None,
+            taffy: TaffyTree::new(),
         }
     }
 
@@ -85,6 +90,17 @@ impl LayoutEngine {
         styles: &HashMap<usize, HashMap<String, String>>,
     ) -> Option<&LayoutNode> {
         let root_id = document.root?;
+
+        // Строим Taffy-дерево из DOM
+        let taffy_root = build_taffy_tree(&mut self.taffy, document, root_id, styles);
+
+        // Вычисляем лейаут
+        let _ = self
+            .taffy
+            .compute_layout(taffy_root, taffy::Size { width: AvailableSpace::Definite(self.viewport_width), height: AvailableSpace::Definite(self.viewport_height) })
+            .ok();
+
+        // Параллельно строим нашу структурированную модель для дальнейшего рендера
         self.layout_tree = build_layout_node(document, root_id, styles, self, None);
         self.layout_tree.as_ref()
     }
@@ -239,5 +255,44 @@ fn compute_dimensions(node: &mut LayoutNode, engine: &LayoutEngine) {
             height.max(node.style.font_size * 1.2)
         }
     };
+}
+
+fn build_taffy_tree(
+    taffy: &mut TaffyTree<()>,
+    document: &Document,
+    node_id: usize,
+    styles: &HashMap<usize, HashMap<String, String>>,
+) -> NodeId {
+    let node_styles = styles.get(&node_id).cloned().unwrap_or_default();
+
+    let display = node_styles.get("display").map(|s| s.as_str());
+    let is_flex = matches!(display, Some("flex"));
+
+    let style = if is_flex {
+        Style {
+            display: taffy::prelude::Display::Flex,
+            ..Default::default()
+        }
+    } else {
+        Style {
+            display: taffy::prelude::Display::Block,
+            ..Default::default()
+        }
+    };
+
+    // Дети
+    let mut children_ids: Vec<NodeId> = Vec::new();
+    if let Some(node) = document.nodes.get(&node_id) {
+        for &child in &node.children {
+            let child_style = styles.get(&child).cloned().unwrap_or_default();
+            if child_style.get("display").map(|s| s.as_str()) == Some("none") {
+                continue;
+            }
+            let child_id = build_taffy_tree(taffy, document, child, styles);
+            children_ids.push(child_id);
+        }
+    }
+
+    taffy.new_with_children(style, &children_ids).unwrap()
 }
 
