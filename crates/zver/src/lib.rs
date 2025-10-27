@@ -4,6 +4,7 @@ pub mod layout;
 pub mod render;
 pub mod network;
 pub mod js;
+pub mod resource_loader;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -17,6 +18,7 @@ pub struct Zver {
     pub render: Arc<RwLock<render::RenderEngine>>,
     pub network: Arc<RwLock<network::NetworkEngine>>,
     pub js: Arc<RwLock<js::JSEngine>>,
+    pub resource_loader: Arc<RwLock<resource_loader::ResourceLoader>>,
 }
 
 impl Zver {
@@ -31,6 +33,7 @@ impl Zver {
             render: Arc::new(RwLock::new(render::RenderEngine::new())),
             network: Arc::new(RwLock::new(network::NetworkEngine::new())),
             js,
+            resource_loader: Arc::new(RwLock::new(resource_loader::ResourceLoader::new())),
         }
     }
 
@@ -85,7 +88,7 @@ impl Zver {
 
         {
             let layout = self.layout.read().await;
-            let render = self.render.read().await;
+            let mut render = self.render.write().await;
             render.paint(&layout).await?;
         }
 

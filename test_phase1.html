@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zver Phase 1 Test</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            padding: 15px;
+            background-color: #f0f0f0;
+        }
+        
+        .box {
+            width: 100px;
+            height: 100px;
+            background-color: #4CAF50;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .button {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">Zver Browser Engine - Phase 1 Test</div>
+    
+    <div class="container">
+        <div class="box">Box 1</div>
+        <div class="box">Box 2</div>
+        <div class="box">Box 3</div>
+    </div>
+    
+    <button class="button" id="testButton">Click Me!</button>
+    
+    <div id="content">
+        <p>This is a test paragraph with <strong>bold</strong> and <em>italic</em> text.</p>
+        <ul>
+            <li>HTTP/2 support</li>
+            <li>CSS parsing with cssparser</li>
+            <li>Flexbox layout with Taffy</li>
+            <li>DOM querying with scraper</li>
+            <li>JavaScript execution with Boa</li>
+        </ul>
+    </div>
+    
+    <script>
+        console.log("Phase 1 JavaScript execution test");
+        
+        setTimeout(function() {
+            console.log("setTimeout works!");
+        }, 1000);
+        
+        const button = document.getElementById("testButton");
+        if (button) {
+            console.log("Button found via getElementById");
+        }
+        
+        const boxes = document.querySelector(".box");
+        if (boxes) {
+            console.log("Box found via querySelector");
+        }
+    </script>
+</body>
+</html>
