@@ -1,0 +1,10 @@
+[package]
+name = "zver-egui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+eframe = "0.32"
+egui = "0.32"
+zver = { path = "../zver" }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }

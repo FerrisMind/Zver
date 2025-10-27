@@ -1,0 +1,13 @@
+[package]
+name = "zver"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cssparser.workspace = true
+html5ever.workspace = true
+kuchikiki.workspace = true
+selectors.workspace = true
+tokio.workspace = true
+wgpu.workspace = true
+winit.workspace = true
