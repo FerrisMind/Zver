@@ -65,23 +65,27 @@ impl NetworkEngine {
     }
 
     // Prefetch ресурсов асинхронно с использованием пула соединений
-    pub async fn prefetch_resources(&self, urls: Vec<String>) -> Vec<Result<String, Box<dyn std::error::Error>>> {
+    pub async fn prefetch_resources(
+        &self,
+        urls: Vec<String>,
+    ) -> Vec<Result<String, Box<dyn std::error::Error>>> {
         use futures_util::future::join_all;
-        
+
         let futures = urls.into_iter().map(|url| {
             let client = self.client.clone();
             async move {
-                let result: Result<String, Box<dyn std::error::Error>> = if url.starts_with("http://") || url.starts_with("https://") {
-                    match client.get(&url).send().await {
-                        Ok(response) => response.text().await.map_err(|e| e.into()),
-                        Err(e) => Err(e.into()),
-                    }
-                } else {
-                    // Для файлов используем tokio::fs
-                    tokio::fs::read_to_string(url.strip_prefix("file://").unwrap_or(&url))
-                        .await
-                        .map_err(|e| e.into())
-                };
+                let result: Result<String, Box<dyn std::error::Error>> =
+                    if url.starts_with("http://") || url.starts_with("https://") {
+                        match client.get(&url).send().await {
+                            Ok(response) => response.text().await.map_err(|e| e.into()),
+                            Err(e) => Err(e.into()),
+                        }
+                    } else {
+                        // Для файлов используем tokio::fs
+                        tokio::fs::read_to_string(url.strip_prefix("file://").unwrap_or(&url))
+                            .await
+                            .map_err(|e| e.into())
+                    };
                 result
             }
         });
@@ -90,20 +94,24 @@ impl NetworkEngine {
     }
 
     async fn fetch_http_https(&self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let response = self.client
+        let response = self
+            .client
             .get(url)
-            .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            .header(
+                reqwest::header::ACCEPT,
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            )
             .header(reqwest::header::ACCEPT_LANGUAGE, "en-US,en;q=0.9")
             .header(reqwest::header::ACCEPT_ENCODING, "gzip, deflate, br")
             .send()
             .await?;
-        
+
         // Проверяем статус
         let status = response.status();
         if !status.is_success() {
             return Err(format!("HTTP error: {} for {}", status, url).into());
         }
-        
+
         let text = response.text().await?;
         Ok(text)
     }
@@ -120,4 +128,3 @@ impl Default for NetworkEngine {
         Self::new()
     }
 }
-

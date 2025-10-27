@@ -1,10 +1,10 @@
-use tokio::sync::mpsc;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone)]
 pub enum Resource {
-    Css(String, String),  // (url, content)
+    Css(String, String),    // (url, content)
     Image(String, Vec<u8>), // (url, bytes)
     Script(String, String), // (url, content)
 }
@@ -42,7 +42,7 @@ impl ResourceLoader {
 
         let (request_tx, request_rx) = mpsc::unbounded_channel();
         let (response_tx, response_rx) = mpsc::unbounded_channel();
-        
+
         let client = reqwest::Client::builder()
             .user_agent("Zver/0.1")
             .timeout(std::time::Duration::from_secs(30))
@@ -50,7 +50,7 @@ impl ResourceLoader {
             .expect("Failed to create HTTP client");
 
         let loader_client = client.clone();
-        
+
         // Запускаем фоновый worker
         let worker_handle = tokio::spawn(async move {
             Self::worker_loop(request_rx, response_tx, loader_client).await;
@@ -81,9 +81,10 @@ impl ResourceLoader {
                 match request_rx.try_recv() {
                     Ok(request) => {
                         let client = client.clone();
-                        let task = tokio::spawn(async move {
-                            Self::fetch_resource(request, client).await
-                        });
+                        let task =
+                            tokio::spawn(
+                                async move { Self::fetch_resource(request, client).await },
+                            );
                         active_tasks.push(task);
                     }
                     Err(mpsc::error::TryRecvError::Empty) => {
@@ -128,39 +129,27 @@ impl ResourceLoader {
     // Загрузка одного ресурса
     async fn fetch_resource(request: ResourceRequest, client: reqwest::Client) -> Option<Resource> {
         match request {
-            ResourceRequest::Css(url) => {
-                match client.get(&url).send().await {
-                    Ok(response) if response.status().is_success() => {
-                        match response.text().await {
-                            Ok(content) => Some(Resource::Css(url, content)),
-                            Err(_) => None,
-                        }
-                    }
-                    _ => None,
-                }
-            }
-            ResourceRequest::Image(url) => {
-                match client.get(&url).send().await {
-                    Ok(response) if response.status().is_success() => {
-                        match response.bytes().await {
-                            Ok(bytes) => Some(Resource::Image(url, bytes.to_vec())),
-                            Err(_) => None,
-                        }
-                    }
-                    _ => None,
-                }
-            }
-            ResourceRequest::Script(url) => {
-                match client.get(&url).send().await {
-                    Ok(response) if response.status().is_success() => {
-                        match response.text().await {
-                            Ok(content) => Some(Resource::Script(url, content)),
-                            Err(_) => None,
-                        }
-                    }
-                    _ => None,
-                }
-            }
+            ResourceRequest::Css(url) => match client.get(&url).send().await {
+                Ok(response) if response.status().is_success() => match response.text().await {
+                    Ok(content) => Some(Resource::Css(url, content)),
+                    Err(_) => None,
+                },
+                _ => None,
+            },
+            ResourceRequest::Image(url) => match client.get(&url).send().await {
+                Ok(response) if response.status().is_success() => match response.bytes().await {
+                    Ok(bytes) => Some(Resource::Image(url, bytes.to_vec())),
+                    Err(_) => None,
+                },
+                _ => None,
+            },
+            ResourceRequest::Script(url) => match client.get(&url).send().await {
+                Ok(response) if response.status().is_success() => match response.text().await {
+                    Ok(content) => Some(Resource::Script(url, content)),
+                    Err(_) => None,
+                },
+                _ => None,
+            },
         }
     }
 
@@ -188,15 +177,15 @@ impl ResourceLoader {
     // Получение загруженных ресурсов (неблокирующая)
     pub async fn poll_resources(&self) -> Vec<Resource> {
         let mut resources = Vec::new();
-        
+
         if let Some(rx) = &self.response_rx {
             let mut rx_guard = rx.lock().await;
-            
+
             while let Ok(resource) = rx_guard.try_recv() {
                 resources.push(resource);
             }
         }
-        
+
         resources
     }
 

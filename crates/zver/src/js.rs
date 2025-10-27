@@ -1,8 +1,8 @@
 use boa_engine::{
-    js_string, object::ObjectInitializer, property::Attribute, Context, JsValue, NativeFunction,
+    Context, JsValue, NativeFunction, js_string, object::ObjectInitializer, property::Attribute,
 };
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::RwLock;
 
 #[derive(Debug, Clone)]
@@ -18,8 +18,8 @@ pub enum JSValue {
 pub struct JSEngine {
     context: Context,
     dom_ref: Option<Arc<RwLock<super::dom::Document>>>,
-    timers: Arc<RwLock<HashMap<u32, tokio::task::JoinHandle<()>>>>,
-    next_timer_id: Arc<RwLock<u32>>,
+    timers: Arc<Mutex<HashMap<u32, tokio::task::JoinHandle<()>>>>,
+    next_timer_id: Arc<Mutex<u32>>,
 }
 
 impl JSEngine {
@@ -32,8 +32,8 @@ impl JSEngine {
         Self {
             context,
             dom_ref: None,
-            timers: Arc::new(RwLock::new(HashMap::new())),
-            next_timer_id: Arc::new(RwLock::new(1)),
+            timers: Arc::new(Mutex::new(HashMap::new())),
+            next_timer_id: Arc::new(Mutex::new(1)),
         }
     }
 
@@ -56,7 +56,7 @@ impl JSEngine {
             println!();
             Ok(JsValue::undefined())
         });
-        
+
         // console.error
         let console_error = NativeFunction::from_fn_ptr(|_this, args, _context| {
             eprint!("ERROR: ");
@@ -69,7 +69,7 @@ impl JSEngine {
             eprintln!();
             Ok(JsValue::undefined())
         });
-        
+
         // console.warn
         let console_warn = NativeFunction::from_fn_ptr(|_this, args, _context| {
             eprint!("WARN: ");
@@ -96,16 +96,17 @@ impl JSEngine {
         );
     }
 
-
     fn init_document(&mut self) {
         if let Some(dom_ref) = &self.dom_ref {
             let dom_ref_clone = dom_ref.clone();
-            
+
             // document.querySelector
-            let query_selector_fn = unsafe { NativeFunction::from_closure(move |_this, args, _context| {
-                if let Some(selector_js) = args.first()
-                    && let Some(selector_str) = selector_js.as_string()
-                    && let Ok(dom) = dom_ref_clone.try_read() {
+            let query_selector_fn = unsafe {
+                NativeFunction::from_closure(move |_this, args, _context| {
+                    if let Some(selector_js) = args.first()
+                        && let Some(selector_str) = selector_js.as_string()
+                        && let Ok(dom) = dom_ref_clone.try_read()
+                    {
                         let ids = dom.query_selector(selector_str.to_std_string_escaped().as_str());
                         if let Some(first_id) = ids.first() {
                             // Возвращаем объект-элемент с id и методами
@@ -119,16 +120,20 @@ impl JSEngine {
                             return Ok(JsValue::from(element));
                         }
                     }
-                Ok(JsValue::null())
-            }) };
-            
+                    Ok(JsValue::null())
+                })
+            };
+
             // document.getElementById
             let dom_ref_clone2 = dom_ref.clone();
-            let get_element_by_id_fn = unsafe { NativeFunction::from_closure(move |_this, args, _context| {
-                if let Some(id_js) = args.first()
-                    && let Some(id_str) = id_js.as_string()
-                    && let Ok(dom) = dom_ref_clone2.try_read()
-                    && let Some(node_id) = dom.get_element_by_id(id_str.to_std_string_escaped().as_str()) {
+            let get_element_by_id_fn = unsafe {
+                NativeFunction::from_closure(move |_this, args, _context| {
+                    if let Some(id_js) = args.first()
+                        && let Some(id_str) = id_js.as_string()
+                        && let Ok(dom) = dom_ref_clone2.try_read()
+                        && let Some(node_id) =
+                            dom.get_element_by_id(id_str.to_std_string_escaped().as_str())
+                    {
                         let element = ObjectInitializer::new(_context)
                             .property(
                                 js_string!("id"),
@@ -138,8 +143,9 @@ impl JSEngine {
                             .build();
                         return Ok(JsValue::from(element));
                     }
-                Ok(JsValue::null())
-            }) };
+                    Ok(JsValue::null())
+                })
+            };
 
             let document = ObjectInitializer::new(&mut self.context)
                 .function(query_selector_fn, js_string!("querySelector"), 0)
@@ -153,39 +159,40 @@ impl JSEngine {
             );
         }
     }
-    
+
     fn init_timers(&mut self) {
         let timers = self.timers.clone();
         let next_id = self.next_timer_id.clone();
-        
+
         // setTimeout
-        let set_timeout_fn = unsafe { NativeFunction::from_closure(move |_this, args, _context| {
-            if let Some(callback) = args.first()
-                && callback.is_callable() {
-                    let delay_ms = args.get(1)
-                        .and_then(|v| v.as_number())
-                        .unwrap_or(0.0) as u64;
-                    
-                    let mut timer_id_lock = tokio::runtime::Handle::current().block_on(next_id.write());
+        let set_timeout_fn = unsafe {
+            NativeFunction::from_closure(move |_this, args, _context| {
+                if let Some(callback) = args.first()
+                    && callback.is_callable()
+                {
+                    let delay_ms = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0) as u64;
+
+                    let mut timer_id_lock = next_id.lock().unwrap();
                     let timer_id = *timer_id_lock;
                     *timer_id_lock += 1;
                     drop(timer_id_lock);
-                    
+
                     // Планируем выполнение (в реальности нужен более сложный механизм)
                     let handle = tokio::spawn(async move {
                         tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
                         // Здесь должен быть вызов callback в контексте JS
                         println!("Timer {} fired after {}ms", timer_id, delay_ms);
                     });
-                    
-                    let mut timers_lock = tokio::runtime::Handle::current().block_on(timers.write());
+
+                    let mut timers_lock = timers.lock().unwrap();
                     timers_lock.insert(timer_id, handle);
-                    
+
                     return Ok(JsValue::from(timer_id as f64));
                 }
-            Ok(JsValue::undefined())
-        }) };
-        
+                Ok(JsValue::undefined())
+            })
+        };
+
         let _ = self.context.register_global_builtin_callable(
             js_string!("setTimeout"),
             0,
@@ -229,4 +236,3 @@ impl Default for JSEngine {
 
 unsafe impl Send for JSEngine {}
 unsafe impl Sync for JSEngine {}
-

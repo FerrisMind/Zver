@@ -1,4 +1,4 @@
-use kuchikiki::{traits::TendrilSink, NodeData, NodeRef};
+use kuchikiki::{NodeData, NodeRef, traits::TendrilSink};
 use std::collections::HashMap;
 
 // Подключаем scraper для продвинутого DOM querying
@@ -106,23 +106,24 @@ impl Document {
     pub fn query_selector(&self, selector: &str) -> Vec<usize> {
         // Используем scraper для точного поиска элементов
         if let Some(doc) = &self.scraper
-            && let Ok(sel) = ScraperSelector::parse(selector) {
-                let mut result_ids = Vec::new();
-                
-                for element in doc.select(&sel) {
-                    let name = element.value().name();
-                    let id_attr = element.value().id();
-                    let classes: Vec<_> = element.value().classes().collect();
-                    
-                    // Находим соответствующий узел в нашем дереве
-                    // Используем более точное сопоставление с учетом позиции в дереве
-                    if let Some(node_id) = self.find_matching_node(name, id_attr, &classes, &element) {
-                        result_ids.push(node_id);
-                    }
+            && let Ok(sel) = ScraperSelector::parse(selector)
+        {
+            let mut result_ids = Vec::new();
+
+            for element in doc.select(&sel) {
+                let name = element.value().name();
+                let id_attr = element.value().id();
+                let classes: Vec<_> = element.value().classes().collect();
+
+                // Находим соответствующий узел в нашем дереве
+                // Используем более точное сопоставление с учетом позиции в дереве
+                if let Some(node_id) = self.find_matching_node(name, id_attr, &classes, &element) {
+                    result_ids.push(node_id);
                 }
-                
-                return result_ids;
             }
+
+            return result_ids;
+        }
 
         // Фоллбек: простые селекторы
         self.nodes
@@ -141,74 +142,82 @@ impl Document {
         // Ищем узел по тегу, id и классам
         self.nodes.iter().find_map(|(node_id, node)| {
             if let Some(node_tag) = &node.tag_name
-                && node_tag == tag_name {
-                    // Проверяем id
-                    let id_match = match id {
-                        Some(expected_id) => node.attributes
-                            .get("id")
-                            .map(|v| v == expected_id)
-                            .unwrap_or(false),
-                        None => true,
-                    };
-                    
-                    // Проверяем классы
-                    let class_match = if classes.is_empty() {
-                        true
-                    } else {
-                        node.attributes.get("class").map(|cls| {
+                && node_tag == tag_name
+            {
+                // Проверяем id
+                let id_match = match id {
+                    Some(expected_id) => node
+                        .attributes
+                        .get("id")
+                        .map(|v| v == expected_id)
+                        .unwrap_or(false),
+                    None => true,
+                };
+
+                // Проверяем классы
+                let class_match = if classes.is_empty() {
+                    true
+                } else {
+                    node.attributes
+                        .get("class")
+                        .map(|cls| {
                             let existing: Vec<&str> = cls.split_whitespace().collect();
                             classes.iter().all(|c| existing.contains(c))
-                        }).unwrap_or(false)
-                    };
-                    
-                    if id_match && class_match {
-                        return Some(*node_id);
-                    }
+                        })
+                        .unwrap_or(false)
+                };
+
+                if id_match && class_match {
+                    return Some(*node_id);
                 }
+            }
             None
         })
     }
-    
+
     pub fn query_selector_all(&self, selector: &str) -> Vec<usize> {
         self.query_selector(selector)
     }
-    
+
     pub fn get_element_by_id(&self, id: &str) -> Option<usize> {
         self.nodes.iter().find_map(|(node_id, node)| {
-            node.attributes.get("id")
+            node.attributes
+                .get("id")
                 .filter(|v| *v == id)
                 .map(|_| *node_id)
         })
     }
-    
+
     pub fn get_elements_by_tag_name(&self, tag: &str) -> Vec<usize> {
         self.nodes
             .iter()
             .filter_map(|(id, node)| {
-                node.tag_name.as_ref()
+                node.tag_name
+                    .as_ref()
                     .filter(|t| t.as_str() == tag)
                     .map(|_| *id)
             })
             .collect()
     }
-    
+
     pub fn get_elements_by_class_name(&self, class_name: &str) -> Vec<usize> {
         self.nodes
             .iter()
             .filter_map(|(id, node)| {
-                node.attributes.get("class")
+                node.attributes
+                    .get("class")
                     .filter(|cls| cls.split_whitespace().any(|c| c == class_name))
                     .map(|_| *id)
             })
             .collect()
     }
-    
+
     pub fn get_text_content(&self, node_id: usize) -> String {
         let mut text = String::new();
         self.collect_text_recursive(node_id, &mut text);
         text
     }
-    
+
     fn collect_text_recursive(&self, node_id: usize, text: &mut String) {
         if let Some(node) = self.nodes.get(&node_id) {
             if let Some(node_text) = &node.text_content {
@@ -244,4 +253,3 @@ impl Default for Document {
         Self::new()
     }
 }
-

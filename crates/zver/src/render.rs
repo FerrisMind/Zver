@@ -1,8 +1,11 @@
-use wgpu::{Device, Queue, Surface, SurfaceConfiguration, Texture, TextureView};
-use winit::window::Window;
-use wgpu_text::{BrushBuilder, TextBrush, glyph_brush::{Section, Text, ab_glyph::FontArc}};
 use std::collections::HashMap;
 use std::sync::Arc;
+use wgpu::{Device, Queue, Surface, SurfaceConfiguration, Texture, TextureView};
+use wgpu_text::{
+    BrushBuilder, TextBrush,
+    glyph_brush::{Section, Text, ab_glyph::FontArc},
+};
+use winit::window::Window;
 
 #[derive(Debug, Clone)]
 pub struct RenderState {
@@ -48,30 +51,30 @@ pub struct RenderEngine {
     queue: Option<Queue>,
     surface: Option<Surface<'static>>,
     pub state: Option<RenderState>,
-    
+
     // Текстовый рендерер (wgpu-text)
     text_brush: Option<TextBrush<FontArc>>,
-    
+
     // Пайплайны для рендеринга
     rect_pipeline: Option<wgpu::RenderPipeline>,
     image_pipeline: Option<wgpu::RenderPipeline>,
-    
+
     // MSAA ресурсы
     msaa_texture: Option<Texture>,
     msaa_view: Option<TextureView>,
-    
+
     // Bind group layouts
     image_bind_group_layout: Option<wgpu::BindGroupLayout>,
-    
+
     // Кэш загруженных изображений
     image_cache: HashMap<String, Arc<ImageTexture>>,
-    
+
     // Буферы для батчинга
     vertex_buffer: Option<wgpu::Buffer>,
     index_buffer: Option<wgpu::Buffer>,
     vertices: Vec<Vertex>,
     indices: Vec<u16>,
-    
+
     // Инкрементальный рендеринг
     dirty_regions: Vec<Rect>,
 }
@@ -138,16 +141,14 @@ impl RenderEngine {
         };
 
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::downlevel_webgl2_defaults(),
-                    label: Some("Zver Device"),
-                    memory_hints: Default::default(),
-                    trace: Default::default(),
-                    experimental_features: Default::default(),
-                },
-            )
+            .request_device(&wgpu::DeviceDescriptor {
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::downlevel_webgl2_defaults(),
+                label: Some("Zver Device"),
+                memory_hints: Default::default(),
+                trace: Default::default(),
+                experimental_features: Default::default(),
+            })
             .await?;
 
         let surface_caps = surface.get_capabilities(&adapter);
@@ -175,8 +176,12 @@ impl RenderEngine {
         // Инициализация текстового брашa (wgpu-text)
         let font_data = include_bytes!("../../../assets/fonts/Roboto-Regular.ttf");
         let font = FontArc::try_from_slice(font_data).expect("Failed to load font");
-        let text_brush = BrushBuilder::using_font(font)
-            .build(&device, config.width, config.height, config.format);
+        let text_brush = BrushBuilder::using_font(font).build(
+            &device,
+            config.width,
+            config.height,
+            config.format,
+        );
 
         // Создаём MSAA текстуру (4x)
         let msaa_sample_count = 4;
@@ -197,31 +202,37 @@ impl RenderEngine {
         let msaa_view = msaa_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         // Создаём bind group layout для изображений
-        let image_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Image Bind Group Layout"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false,
+        let image_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Image Bind Group Layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
                     },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-        });
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
 
         // Создаём пайплайны
         let rect_pipeline = self.create_rect_pipeline(&device, &config, msaa_sample_count);
-        let image_pipeline = self.create_image_pipeline(&device, &config, &image_bind_group_layout, msaa_sample_count);
+        let image_pipeline = self.create_image_pipeline(
+            &device,
+            &config,
+            &image_bind_group_layout,
+            msaa_sample_count,
+        );
 
         // Создаём начальные буферы
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -255,7 +266,12 @@ impl RenderEngine {
     }
 
     // Создание пайплайна для рендеринга прямоугольников
-    fn create_rect_pipeline(&self, device: &Device, config: &SurfaceConfiguration, sample_count: u32) -> wgpu::RenderPipeline {
+    fn create_rect_pipeline(
+        &self,
+        device: &Device,
+        config: &SurfaceConfiguration,
+        sample_count: u32,
+    ) -> wgpu::RenderPipeline {
         let shader_src = r#"
 struct VertexInput {
     @location(0) position: vec2<f32>,
@@ -437,7 +453,11 @@ impl std::fmt::Debug for RenderEngine {
 
 impl RenderEngine {
     // Загрузка изображения из байтов
-    pub async fn load_image_from_bytes(&mut self, url: &str, bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn load_image_from_bytes(
+        &mut self,
+        url: &str,
+        bytes: &[u8],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let (device, queue, layout) = match (
             self.device.as_ref(),
             self.queue.as_ref(),
@@ -523,7 +543,8 @@ impl RenderEngine {
             height: dimensions.1,
         };
 
-        self.image_cache.insert(url.to_string(), Arc::new(image_texture));
+        self.image_cache
+            .insert(url.to_string(), Arc::new(image_texture));
         Ok(())
     }
 
@@ -534,7 +555,7 @@ impl RenderEngine {
                 Some(s) => s,
                 None => return false, // Не инициализирован
             };
-            
+
             let base_idx = self.vertices.len() as u16;
 
             // Конвертируем координаты в NDC
@@ -566,8 +587,12 @@ impl RenderEngine {
             });
 
             self.indices.extend_from_slice(&[
-                base_idx, base_idx + 1, base_idx + 2,
-                base_idx + 2, base_idx + 3, base_idx,
+                base_idx,
+                base_idx + 1,
+                base_idx + 2,
+                base_idx + 2,
+                base_idx + 3,
+                base_idx,
             ]);
 
             true
@@ -582,7 +607,7 @@ impl RenderEngine {
             Some(s) => s,
             None => return, // Не инициализирован, пропускаем
         };
-        
+
         let base_idx = self.vertices.len() as u16;
 
         // Конвертируем координаты в NDC (Normalized Device Coordinates)
@@ -615,8 +640,12 @@ impl RenderEngine {
 
         // Добавляем 6 индексов для 2 треугольников
         self.indices.extend_from_slice(&[
-            base_idx, base_idx + 1, base_idx + 2,
-            base_idx + 2, base_idx + 3, base_idx,
+            base_idx,
+            base_idx + 1,
+            base_idx + 2,
+            base_idx + 2,
+            base_idx + 3,
+            base_idx,
         ]);
     }
 
@@ -627,13 +656,9 @@ impl RenderEngine {
             && let Some(device) = self.device.as_ref()
         {
             let section = Section::default()
-                .add_text(
-                    Text::new(text)
-                        .with_scale(font_size)
-                        .with_color(color)
-                )
+                .add_text(Text::new(text).with_scale(font_size).with_color(color))
                 .with_screen_position((x, y));
-            
+
             let _ = brush.queue(device, queue, vec![&section]);
         }
     }
@@ -663,7 +688,9 @@ impl RenderEngine {
 
         // Получаем текущий кадр
         let frame = surface.get_current_texture()?;
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Zver Render Encoder"),
@@ -801,7 +828,8 @@ impl RenderEngine {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 view_formats: &[],
             });
-            self.msaa_view = Some(msaa_texture.create_view(&wgpu::TextureViewDescriptor::default()));
+            self.msaa_view =
+                Some(msaa_texture.create_view(&wgpu::TextureViewDescriptor::default()));
             self.msaa_texture = Some(msaa_texture);
 
             // Обновляем размеры у текстового брашa
@@ -822,14 +850,9 @@ fn parse_color(color_str: &str) -> [f32; 4] {
             u8::from_str_radix(&hex[4..6], 16),
         )
     {
-        return [
-            r as f32 / 255.0,
-            g as f32 / 255.0,
-            b as f32 / 255.0,
-            1.0,
-        ];
+        return [r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, 1.0];
     }
-    
+
     // Цвета по умолчанию
     match color_str {
         "red" => [1.0, 0.0, 0.0, 1.0],
