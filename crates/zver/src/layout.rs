@@ -110,12 +110,12 @@ impl LayoutEngine {
 
         // Параллельно строим нашу структурированную модель для дальнейшего рендера
         self.layout_tree = build_layout_node(document, root_id, styles, self, None);
-        
+
         // Устанавливаем позиции всех узлов
         if let Some(tree) = &mut self.layout_tree {
             compute_positions(tree, 0.0, 0.0);
         }
-        
+
         self.layout_tree.as_ref()
     }
 
@@ -238,7 +238,7 @@ fn build_layout_node(
         dom_node: node_id,
     };
 
-    compute_dimensions(&mut layout_node, engine, &node);
+    compute_dimensions(&mut layout_node, engine, node);
     Some(layout_node)
 }
 
@@ -256,7 +256,7 @@ fn inherit_properties(style: &mut ComputedStyle, parent: Option<&ComputedStyle>)
 fn compute_dimensions(node: &mut LayoutNode, engine: &LayoutEngine, dom_node: &crate::dom::Node) {
     // Для текстовых узлов устанавливаем размеры на основе текста
     let is_text_node = dom_node.tag_name.is_none() && dom_node.text_content.is_some();
-    
+
     node.dimensions.width = match node.style.width {
         Size::Px(px) => px,
         Size::Percent(percent) => engine.viewport_width * percent / 100.0,
@@ -306,9 +306,9 @@ fn compute_dimensions(node: &mut LayoutNode, engine: &LayoutEngine, dom_node: &c
 fn compute_positions(node: &mut LayoutNode, parent_x: f32, parent_y: f32) {
     node.dimensions.x = parent_x;
     node.dimensions.y = parent_y;
-    
+
     let mut current_y = parent_y;
-    
+
     for child in &mut node.children {
         // Блочные элементы располагаются вертикально
         match child.style.display {

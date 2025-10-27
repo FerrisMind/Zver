@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4 Test - Advanced Browser Features</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 30px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .hero {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 60px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
+            margin-bottom: 40px;
+        }
+        
+        h1 {
+            font-size: 56px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+        
+        .tagline {
+            color: #666;
+            font-size: 20px;
+            font-weight: 300;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        
+        .demo-area {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border: 2px solid #e0e0e0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 8px 5px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.6);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        input[type="text"],
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 12px 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            margin: 10px 0;
+            font-family: inherit;
+        }
+        
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .output {
+            background: #fff;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background: #4caf50;
+            box-shadow: 0 0 10px #4caf50;
+        }
+        
+        .status-offline {
+            background: #f44336;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 5px;
+        }
+        
+        .canvas-container {
+            text-align: center;
+        }
+        
+        canvas {
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 100%;
+            height: auto;
+        }
+        
+        .drag-drop-zone {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .drag-drop-zone:hover,
+        .drag-drop-zone.drag-over {
+            background: #e8eaf6;
+            border-color: #764ba2;
+            transform: scale(1.02);
+        }
+        
+        .code-snippet {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>🚀 Phase 4 Advanced Features</h1>
+            <p class="tagline">Testing Canvas, Web APIs, Storage & Advanced JavaScript</p>
+        </div>
+        
+        <div class="feature-grid">
+            <!-- Canvas 2D Drawing -->
+            <div class="card">
+                <h2>🎨 Canvas 2D Graphics</h2>
+                <div class="demo-area canvas-container">
+                    <canvas id="main-canvas" width="350" height="250"></canvas>
+                </div>
+                <button id="draw-shapes">Draw Shapes</button>
+                <button id="draw-animation">Animate</button>
+                <button id="clear-canvas">Clear</button>
+                <div>
+                    <span class="badge">ctx.fillRect()</span>
+                    <span class="badge">ctx.arc()</span>
+                    <span class="badge">ctx.lineTo()</span>
+                    <span class="badge">gradients</span>
+                </div>
+            </div>
+            
+            <!-- WebSockets -->
+            <div class="card">
+                <h2>🔌 WebSocket Connection</h2>
+                <div class="demo-area">
+                    <p><span class="status-indicator status-offline" id="ws-status"></span>Status: <span id="ws-text">Disconnected</span></p>
+                    <input type="text" id="ws-url" placeholder="ws://echo.websocket.org" value="wss://echo.websocket.org">
+                    <button id="ws-connect">Connect</button>
+                    <button id="ws-disconnect">Disconnect</button>
+                    <input type="text" id="ws-message" placeholder="Message to send">
+                    <button id="ws-send">Send</button>
+                </div>
+                <div class="output" id="ws-output">Connection log will appear here...</div>
+            </div>
+            
+            <!-- File API -->
+            <div class="card">
+                <h2>📁 File API & Drag-Drop</h2>
+                <div class="drag-drop-zone" id="drop-zone">
+                    <p style="font-size: 24px; margin-bottom: 10px;">📂</p>
+                    <p>Drag & Drop files here or click to select</p>
+                    <input type="file" id="file-input" multiple style="display: none;">
+                </div>
+                <button id="select-files">Select Files</button>
+                <div class="output" id="file-output">No files selected</div>
+            </div>
+            
+            <!-- localStorage Advanced -->
+            <div class="card">
+                <h2>💾 Advanced Storage</h2>
+                <div class="demo-area">
+                    <textarea id="storage-data" rows="4" placeholder="Enter JSON data to store...">{"name":"Test User","settings":{"theme":"dark","lang":"en"}}</textarea>
+                    <button id="save-json">Save JSON</button>
+                    <button id="load-json">Load JSON</button>
+                    <button id="export-storage">Export All</button>
+                </div>
+                <div class="output" id="storage-output">Storage operations will appear here...</div>
+            </div>
+            
+            <!-- Geolocation -->
+            <div class="card">
+                <h2>🌍 Geolocation API</h2>
+                <div class="demo-area">
+                    <button id="get-location">Get My Location</button>
+                    <button id="watch-location">Watch Position</button>
+                    <button id="stop-watch">Stop Watching</button>
+                </div>
+                <div class="output" id="geo-output">Click button to get location...</div>
+                <div>
+                    <span class="badge">getCurrentPosition</span>
+                    <span class="badge">watchPosition</span>
+                </div>
+            </div>
+            
+            <!-- Notifications -->
+            <div class="card">
+                <h2>🔔 Notifications API</h2>
+                <div class="demo-area">
+                    <button id="request-permission">Request Permission</button>
+                    <button id="show-notification">Show Notification</button>
+                    <button id="show-persistent">Persistent Notification</button>
+                </div>
+                <div class="output" id="notif-output">Permission: <span id="notif-permission">Unknown</span></div>
+            </div>
+            
+            <!-- Web Workers -->
+            <div class="card">
+                <h2>⚙️ Web Workers</h2>
+                <div class="demo-area">
+                    <button id="start-worker">Start Heavy Calculation</button>
+                    <button id="terminate-worker">Terminate Worker</button>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="worker-progress" style="width: 0%;">0%</div>
+                    </div>
+                </div>
+                <div class="output" id="worker-output">Worker not started</div>
+            </div>
+            
+            <!-- IndexedDB -->
+            <div class="card">
+                <h2>🗄️ IndexedDB</h2>
+                <div class="demo-area">
+                    <input type="text" id="idb-key" placeholder="Key (e.g., user1)">
+                    <input type="text" id="idb-value" placeholder="Value (e.g., John Doe)">
+                    <button id="idb-add">Add Record</button>
+                    <button id="idb-get">Get Record</button>
+                    <button id="idb-list">List All</button>
+                    <button id="idb-delete">Delete</button>
+                </div>
+                <div class="output" id="idb-output">No database operations yet</div>
+            </div>
+        </div>
+        
+        <!-- Performance Monitoring -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2>📊 Performance & Monitoring</h2>
+            <div class="demo-area">
+                <button id="measure-performance">Measure Load Performance</button>
+                <button id="get-resources">Get Resource Timing</button>
+                <button id="memory-info">Memory Usage</button>
+            </div>
+            <div class="code-snippet" id="perf-output">Performance data will appear here...</div>
+        </div>
+    </div>
+    
+    <script>
+        console.log("Phase 4 Advanced Features Test Initialized");
+        
+        // Canvas 2D
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        document.getElementById('draw-shapes')?.addEventListener('click', function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 350, 250);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 350, 250);
+            
+            // Circle
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(100, 100, 40, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Rectangle
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillRect(180, 70, 80, 60);
+            
+            // Triangle
+            ctx.fillStyle = '#4ecdc4';
+            ctx.beginPath();
+            ctx.moveTo(175, 200);
+            ctx.lineTo(225, 150);
+            ctx.lineTo(275, 200);
+            ctx.closePath();
+            ctx.fill();
+            
+            console.log("Canvas shapes drawn");
+        });
+        
+        let animationId = null;
+        document.getElementById('draw-animation')?.addEventListener('click', function() {
+            let x = 0;
+            function animate() {
+                ctx.clearRect(0, 0, 350, 250);
+                ctx.fillStyle = '#667eea';
+                ctx.fillRect(x, 100, 50, 50);
+                x = (x + 2) % 350;
+                animationId = requestAnimationFrame(animate);
+            }
+            animate();
+        });
+        
+        document.getElementById('clear-canvas')?.addEventListener('click', function() {
+            if (animationId) cancelAnimationFrame(animationId);
+            ctx.clearRect(0, 0, 350, 250);
+        });
+        
+        // WebSocket
+        let ws = null;
+        document.getElementById('ws-connect')?.addEventListener('click', function() {
+            const url = document.getElementById('ws-url').value;
+            const output = document.getElementById('ws-output');
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = () => {
+                    document.getElementById('ws-status').className = 'status-indicator status-online';
+                    document.getElementById('ws-text').textContent = 'Connected';
+                    output.innerHTML += '<p>✅ Connected to ' + url + '</p>';
+                };
+                
+                ws.onmessage = (event) => {
+                    output.innerHTML += '<p>📨 Received: ' + event.data + '</p>';
+                };
+                
+                ws.onerror = (error) => {
+                    output.innerHTML += '<p>❌ Error: ' + error + '</p>';
+                };
+                
+                ws.onclose = () => {
+                    document.getElementById('ws-status').className = 'status-indicator status-offline';
+                    document.getElementById('ws-text').textContent = 'Disconnected';
+                    output.innerHTML += '<p>🔌 Connection closed</p>';
+                };
+            } catch (e) {
+                output.innerHTML += '<p>❌ Failed to connect: ' + e.message + '</p>';
+            }
+        });
+        
+        document.getElementById('ws-send')?.addEventListener('click', function() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const msg = document.getElementById('ws-message').value;
+                ws.send(msg);
+                document.getElementById('ws-output').innerHTML += '<p>📤 Sent: ' + msg + '</p>';
+            }
+        });
+        
+        document.getElementById('ws-disconnect')?.addEventListener('click', function() {
+            if (ws) ws.close();
+        });
+        
+        // File API
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const fileOutput = document.getElementById('file-output');
+        
+        dropZone?.addEventListener('click', () => fileInput.click());
+        
+        dropZone?.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone?.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone?.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput?.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            fileOutput.innerHTML = '<p><strong>' + files.length + ' file(s) selected:</strong></p>';
+            for (let file of files) {
+                fileOutput.innerHTML += '<p>📄 ' + file.name + ' (' + (file.size / 1024).toFixed(2) + ' KB, ' + file.type + ')</p>';
+            }
+        }
+        
+        // Advanced Storage
+        document.getElementById('save-json')?.addEventListener('click', function() {
+            const data = document.getElementById('storage-data').value;
+            try {
+                const obj = JSON.parse(data);
+                localStorage.setItem('app_data', JSON.stringify(obj));
+                document.getElementById('storage-output').innerHTML = '<p>✅ Saved: ' + data + '</p>';
+            } catch (e) {
+                document.getElementById('storage-output').innerHTML = '<p>❌ Invalid JSON: ' + e.message + '</p>';
+            }
+        });
+        
+        document.getElementById('load-json')?.addEventListener('click', function() {
+            const data = localStorage.getItem('app_data');
+            if (data) {
+                document.getElementById('storage-data').value = data;
+                document.getElementById('storage-output').innerHTML = '<p>✅ Loaded from storage</p>';
+            } else {
+                document.getElementById('storage-output').innerHTML = '<p>❌ No data found</p>';
+            }
+        });
+        
+        document.getElementById('export-storage')?.addEventListener('click', function() {
+            const output = document.getElementById('storage-output');
+            output.innerHTML = '<p><strong>All localStorage items:</strong></p>';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                output.innerHTML += '<p>' + key + ': ' + localStorage.getItem(key) + '</p>';
+            }
+        });
+        
+        // Geolocation
+        let watchId = null;
+        document.getElementById('get-location')?.addEventListener('click', function() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        document.getElementById('geo-output').innerHTML = 
+                            '<p>📍 Latitude: ' + pos.coords.latitude + '</p>' +
+                            '<p>📍 Longitude: ' + pos.coords.longitude + '</p>' +
+                            '<p>🎯 Accuracy: ' + pos.coords.accuracy + 'm</p>';
+                    },
+                    (err) => {
+                        document.getElementById('geo-output').innerHTML = '<p>❌ Error: ' + err.message + '</p>';
+                    }
+                );
+            }
+        });
+        
+        // Performance
+        document.getElementById('measure-performance')?.addEventListener('click', function() {
+            const perf = performance.getEntriesByType('navigation')[0];
+            const output = document.getElementById('perf-output');
+            output.innerHTML = 
+                '{\n' +
+                '  "domContentLoaded": ' + perf.domContentLoadedEventEnd + 'ms,\n' +
+                '  "loadComplete": ' + perf.loadEventEnd + 'ms,\n' +
+                '  "dnsLookup": ' + (perf.domainLookupEnd - perf.domainLookupStart) + 'ms,\n' +
+                '  "tcpConnection": ' + (perf.connectEnd - perf.connectStart) + 'ms\n' +
+                '}';
+        });
+        
+        console.log("Phase 4 features initialized successfully");
+    </script>
+</body>
+</html>

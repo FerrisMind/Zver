@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Phase 2 Test - GPU Rendering & Multithreading</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            color: #333;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .phase-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .test-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .test-card h3 {
+            margin-top: 0;
+            color: #667eea;
+            font-size: 18px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .feature-list li:before {
+            content: "✓ ";
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        
+        .text-sample {
+            font-size: 18px;
+            font-weight: 500;
+            padding: 15px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+        
+        .image-test {
+            width: 150px;
+            height: 150px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border-radius: 10px;
+            margin: 10px auto;
+            display: block;
+        }
+        
+        .parallel-demo {
+            background: linear-gradient(90deg, #a8edea 0%, #fed6e3 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .highlight-yellow {
+            background-color: #ffeb3b;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .highlight-blue {
+            background-color: #2196f3;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        code {
+            background: #263238;
+            color: #aed581;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="phase-badge">PHASE 2</span>
+        <h1>GPU Rendering + Multithreading Test</h1>
+        
+        <div class="test-card">
+            <h3>🎨 GPU Text Rendering (wgpu-text)</h3>
+            <p>Этот текст должен рендериться через <code>wgpu-text</code> с использованием GPU.</p>
+            <p class="text-sample">Проверка различных размеров и стилей текста: <strong>жирный</strong>, <em>курсив</em></p>
+            <p style="font-size: 24px;">Большой текст для проверки масштабирования</p>
+            <p style="font-size: 12px;">Маленький текст для проверки читаемости</p>
+        </div>
+        
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>🖼️ Image Loading & Rendering</h3>
+                <p>Загрузка изображений через <code>image</code> crate:</p>
+                <ul class="feature-list">
+                    <li>PNG формат</li>
+                    <li>JPEG формат</li>
+                    <li>WebP формат</li>
+                    <li>GPU текстуры</li>
+                </ul>
+                <div class="image-test" title="Тестовый градиент"></div>
+            </div>
+            
+            <div class="test-card">
+                <h3>✨ MSAA + Alpha Blending</h3>
+                <ul class="feature-list">
+                    <li>4x MSAA antialiasing</li>
+                    <li>Сглаживание краёв</li>
+                    <li>Альфа-прозрачность</li>
+                    <li>Качественный рендер</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="parallel-demo">
+            <h3>⚡ Parallel CSS/DOM Processing (rayon)</h3>
+            <p>Многопоточная обработка CSS правил и применение стилей через <code>rayon::par_iter</code></p>
+            <p>Этот блок должен обрабатываться параллельно с другими элементами страницы</p>
+        </div>
+        
+        <div class="test-card">
+            <h3>🔄 Async Resource Loading (tokio)</h3>
+            <ul class="feature-list">
+                <li>Асинхронная загрузка CSS</li>
+                <li>Параллельная загрузка изображений</li>
+                <li>Фоновая загрузка скриптов</li>
+                <li>HTTP/2 pooling (6 соединений)</li>
+                <li>Prefetch механизм</li>
+            </ul>
+        </div>
+        
+        <div class="highlight-yellow">
+            <h3>📦 Glyph Batching Test</h3>
+            <p>Автоматический батчинг глифов текста для уменьшения draw calls. Весь этот текст должен рендериться в одном батче для оптимизации производительности GPU.</p>
+        </div>
+        
+        <div class="highlight-blue">
+            <h3>🎯 Incremental Rendering</h3>
+            <p>Система dirty-регионов для обновления только изменённых областей:</p>
+            <code>mark_region_dirty(x, y, width, height)</code>
+        </div>
+        
+        <div class="test-card">
+            <h3>📊 Технические характеристики</h3>
+            <ul class="feature-list">
+                <li><strong>wgpu 27.0:</strong> Современный GPU API</li>
+                <li><strong>wgpu-text 27.0:</strong> Текстовый рендеринг с FontArc</li>
+                <li><strong>image 0.25:</strong> Декодирование изображений</li>
+                <li><strong>rayon 1.11:</strong> Data parallelism</li>
+                <li><strong>tokio 1.48:</strong> Async runtime</li>
+                <li><strong>bytemuck 1.14:</strong> Safe type casting</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        console.log("Phase 2 - GPU Rendering test loaded");
+        console.log("Testing parallel CSS processing with rayon");
+        console.log("Testing async resource loading with tokio");
+        console.log("All Phase 2 systems initialized");
+    </script>
+</body>
+</html>

@@ -14,18 +14,21 @@ fn main() -> eframe::Result {
 
 struct ZverApp {
     engine: Arc<Zver>,
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
     url: String,
     status: String,
     last_html: String,
     dom_stats: String,
     layout_stats: String,
     js_stats: String,
+    show_html_source: bool,
+    show_visual_layout_window: bool,
+    show_clean_render_window: bool,
 }
 
 impl Default for ZverApp {
     fn default() -> Self {
-        let runtime = Runtime::new().expect("failed to create tokio runtime");
+        let runtime = Arc::new(Runtime::new().expect("failed to create tokio runtime"));
         let engine = Arc::new(Zver::new());
 
         Self {
@@ -37,6 +40,9 @@ impl Default for ZverApp {
             dom_stats: "DOM не загружен".to_string(),
             layout_stats: "Layout не вычислен".to_string(),
             js_stats: "JS не исполнен".to_string(),
+            show_html_source: true,
+            show_visual_layout_window: false,
+            show_clean_render_window: false,
         }
     }
 }
@@ -221,106 +227,209 @@ impl eframe::App for ZverApp {
             ui.label(&self.js_stats);
 
             ui.separator();
-            ui.heading("Visual Layout Render:");
 
-            // Рендерим layout tree визуально через egui
-            let engine_for_render = self.engine.clone();
-            self.runtime.block_on(async {
-                let layout = engine_for_render.layout.read().await;
-                let dom = engine_for_render.dom.read().await;
+            // Кнопки для управления окнами и секциями
+            ui.horizontal(|ui| {
+                if ui
+                    .button(if self.show_html_source {
+                        "Hide HTML Source"
+                    } else {
+                        "Show HTML Source"
+                    })
+                    .clicked()
+                {
+                    self.show_html_source = !self.show_html_source;
+                }
 
-                if let Some(tree) = &layout.layout_tree {
-                    // Отладочная информация
-                    ui.label(format!(
-                        "Root dimensions: x={}, y={}, w={}, h={}",
-                        tree.dimensions.x,
-                        tree.dimensions.y,
-                        tree.dimensions.width,
-                        tree.dimensions.height
-                    ));
-                    ui.label(format!("Root children count: {}", tree.children.len()));
+                if ui.button("Open Visual Layout Window").clicked() {
+                    self.show_visual_layout_window = true;
+                }
 
-                    // Отладка: сколько узлов с текстом
-                    let mut text_nodes = 0;
-                    let mut empty_nodes = 0;
-                    for node in dom.nodes.values() {
-                        if let Some(text) = &node.text_content
-                            && !text.trim().is_empty()
-                        {
-                            text_nodes += 1;
-                        }
-                        if node.text_content.is_none() && node.tag_name.is_some() {
-                            empty_nodes += 1;
-                        }
-                    }
-                    ui.label(format!(
-                        "DOM: {} nodes with text, {} element nodes",
-                        text_nodes, empty_nodes
-                    ));
-
-                    // Создаём отдельную область для рендеринга с фиксированным размером
-                    egui::ScrollArea::both().max_height(400.0).show(ui, |ui| {
-                        // Резервируем пространство для рендеринга
-                        let (response, painter) =
-                            ui.allocate_painter(egui::vec2(800.0, 600.0), egui::Sense::hover());
-
-                        render_layout_tree_in_painter(&painter, response.rect.min, tree, &dom, 0);
-                    });
-                } else {
-                    ui.label("Layout tree не построен");
+                if ui.button("Open Clean Render Window").clicked() {
+                    self.show_clean_render_window = true;
                 }
             });
 
-            ui.separator();
-            ui.heading("HTML Source:");
+            // HTML Source с прокруткой (опционально показываем)
+            if self.show_html_source {
+                ui.separator();
+                ui.heading("HTML Source:");
 
-            // Автоматически обновляем HTML только если он уже был загружен
-            if self.last_html.is_empty() && !self.status.contains("Готов к загрузке")
-            {
-                let engine_for_dom = self.engine.clone();
-                (
-                    self.last_html,
-                    self.dom_stats,
-                    self.layout_stats,
-                    self.js_stats,
-                ) = self.runtime.block_on(async {
-                    let dom = engine_for_dom.dom.read().await;
-                    let layout = engine_for_dom.layout.read().await;
+                // Автоматически обновляем HTML только если он уже был загружен
+                if self.last_html.is_empty() && !self.status.contains("Готов к загрузке")
+                {
+                    let engine_for_dom = self.engine.clone();
+                    (
+                        self.last_html,
+                        self.dom_stats,
+                        self.layout_stats,
+                        self.js_stats,
+                    ) = self.runtime.block_on(async {
+                        let dom = engine_for_dom.dom.read().await;
+                        let layout = engine_for_dom.layout.read().await;
 
-                    // Сериализация HTML
-                    let mut html = String::new();
-                    if let Some(root) = dom.root {
-                        let html_root = find_html_element(&dom, root);
-                        serialize_node(&dom, html_root, &mut html);
-                    }
+                        // Сериализация HTML
+                        let mut html = String::new();
+                        if let Some(root) = dom.root {
+                            let html_root = find_html_element(&dom, root);
+                            serialize_node(&dom, html_root, &mut html);
+                        }
 
-                    // Статистика DOM
-                    let dom_stats = format!(
-                        "DOM узлов: {}, Корень: {:?}, Scraper: {}",
-                        dom.nodes.len(),
-                        dom.root,
-                        dom.has_scraper()
-                    );
+                        // Статистика DOM
+                        let dom_stats = format!(
+                            "DOM узлов: {}, Корень: {:?}, Scraper: {}",
+                            dom.nodes.len(),
+                            dom.root,
+                            dom.has_scraper()
+                        );
 
-                    // Статистика Layout
-                    let layout_stats = if let Some(tree) = &layout.layout_tree {
-                        format!(
-                            "Layout вычислен: {}x{}",
-                            tree.dimensions.width, tree.dimensions.height
-                        )
-                    } else {
-                        "Layout не вычислен".to_string()
-                    };
+                        // Статистика Layout
+                        let layout_stats = if let Some(tree) = &layout.layout_tree {
+                            format!(
+                                "Layout вычислен: {}x{}",
+                                tree.dimensions.width, tree.dimensions.height
+                            )
+                        } else {
+                            "Layout не вычислен".to_string()
+                        };
 
-                    // Статистика JS
-                    let js_stats = "JS исполнен (Boa)".to_string();
+                        // Статистика JS
+                        let js_stats = "JS исполнен (Boa)".to_string();
 
-                    (html, dom_stats, layout_stats, js_stats)
-                });
+                        (html, dom_stats, layout_stats, js_stats)
+                    });
+                }
+
+                // Область с прокруткой для HTML исходника
+                egui::ScrollArea::vertical()
+                    .max_height(300.0)
+                    .show(ui, |ui| {
+                        ui.add(
+                            TextEdit::multiline(&mut self.last_html)
+                                .desired_width(f32::INFINITY)
+                                .code_editor(),
+                        );
+                    });
             }
-
-            ui.add(TextEdit::multiline(&mut self.last_html).desired_width(f32::INFINITY));
         });
+
+        // Рендерим окна каждый фрейм, если они открыты
+        if self.show_visual_layout_window {
+            let engine_clone = self.engine.clone();
+            let runtime_clone = self.runtime.clone();
+
+            ctx.show_viewport_immediate(
+                egui::ViewportId::from_hash_of("visual_layout"),
+                egui::ViewportBuilder::default()
+                    .with_title("Visual Layout Render")
+                    .with_inner_size([850.0, 700.0]),
+                |ctx, _class| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        runtime_clone.block_on(async {
+                            let layout = engine_clone.layout.read().await;
+                            let dom = engine_clone.dom.read().await;
+
+                            if let Some(tree) = &layout.layout_tree {
+                                ui.label(format!(
+                                    "Root dimensions: x={}, y={}, w={}, h={}",
+                                    tree.dimensions.x,
+                                    tree.dimensions.y,
+                                    tree.dimensions.width,
+                                    tree.dimensions.height
+                                ));
+                                ui.label(format!("Root children count: {}", tree.children.len()));
+
+                                let mut text_nodes = 0;
+                                let mut empty_nodes = 0;
+                                for node in dom.nodes.values() {
+                                    if let Some(text) = &node.text_content
+                                        && !text.trim().is_empty()
+                                    {
+                                        text_nodes += 1;
+                                    }
+                                    if node.text_content.is_none() && node.tag_name.is_some() {
+                                        empty_nodes += 1;
+                                    }
+                                }
+                                ui.label(format!(
+                                    "DOM: {} nodes with text, {} element nodes",
+                                    text_nodes, empty_nodes
+                                ));
+
+                                ui.separator();
+
+                                egui::ScrollArea::both().show(ui, |ui| {
+                                    // Увеличиваем размер canvas для полного отображения
+                                    let canvas_width = tree.dimensions.width.max(1200.0);
+                                    let canvas_height = tree.dimensions.height.max(1000.0);
+
+                                    let (response, painter) = ui.allocate_painter(
+                                        egui::vec2(canvas_width, canvas_height),
+                                        egui::Sense::hover(),
+                                    );
+
+                                    render_layout_tree_in_painter(
+                                        &painter,
+                                        response.rect.min,
+                                        tree,
+                                        &dom,
+                                        0,
+                                    );
+                                });
+                            } else {
+                                ui.label("Layout tree не построен");
+                            }
+                        });
+                    });
+
+                    if ctx.input(|i| i.viewport().close_requested()) {
+                        // Пользователь закрыл окно
+                    }
+                },
+            );
+        }
+
+        if self.show_clean_render_window {
+            let engine_clone = self.engine.clone();
+            let runtime_clone = self.runtime.clone();
+
+            ctx.show_viewport_immediate(
+                egui::ViewportId::from_hash_of("clean_render"),
+                egui::ViewportBuilder::default()
+                    .with_title("Clean Render")
+                    .with_inner_size([1024.0, 768.0]),
+                |ctx, _class| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        runtime_clone.block_on(async {
+                            let layout = engine_clone.layout.read().await;
+                            let dom = engine_clone.dom.read().await;
+
+                            if let Some(tree) = &layout.layout_tree {
+                                egui::ScrollArea::both().show(ui, |ui| {
+                                    let (response, painter) = ui.allocate_painter(
+                                        egui::vec2(
+                                            tree.dimensions.width.max(800.0),
+                                            tree.dimensions.height.max(600.0),
+                                        ),
+                                        egui::Sense::hover(),
+                                    );
+
+                                    painter.rect_filled(response.rect, 0.0, egui::Color32::WHITE);
+
+                                    render_clean_layout(&painter, response.rect.min, tree, &dom);
+                                });
+                            } else {
+                                ui.label("Layout tree не построен. Загрузите страницу.");
+                            }
+                        });
+                    });
+
+                    if ctx.input(|i| i.viewport().close_requested()) {
+                        // Пользователь закрыл окно
+                    }
+                },
+            );
+        }
     }
 }
 
@@ -444,7 +553,8 @@ fn render_layout_tree_in_painter(
         egui::StrokeKind::Outside,
     );
 
-    // Рендерим текстовый контент, если есть
+    // ИСПРАВЛЕНИЕ: Рендерим текст ТОЛЬКО если он есть в этом конкретном узле
+    // Не собираем рекурсивно из детей - это предотвращает дублирование
     if let Some(text) = text_content {
         let trimmed = text.trim();
         if !trimmed.is_empty() && width > 10.0 && height > 10.0 {
@@ -550,5 +660,99 @@ fn get_default_color_for_tag(tag_name: &Option<String>) -> egui::Color32 {
         }
     } else {
         egui::Color32::from_rgb(255, 255, 200) // Текстовые узлы
+    }
+}
+
+// Чистовой рендеринг без отладочной информации
+fn render_clean_layout(
+    painter: &egui::Painter,
+    offset: egui::Pos2,
+    node: &zver::layout::LayoutNode,
+    dom: &zver::dom::Document,
+) {
+    use egui::{Color32, FontId, Rect, Vec2};
+
+    let x = node.dimensions.x;
+    let y = node.dimensions.y;
+    let width = node.dimensions.width;
+    let height = node.dimensions.height;
+
+    // Пропускаем узлы с нулевыми размерами
+    if width <= 0.0 || height <= 0.0 {
+        for child in &node.children {
+            render_clean_layout(painter, offset, child, dom);
+        }
+        return;
+    }
+
+    // Получаем DOM узел и его информацию
+    let (bg_color, text_content, tag_name) = if let Some(dom_node) = dom.nodes.get(&node.dom_node) {
+        let bg = if let Some(bg_css) = &node.style.background_color {
+            parse_css_color(bg_css).unwrap_or(Color32::TRANSPARENT)
+        } else {
+            Color32::TRANSPARENT
+        };
+
+        // ИСПРАВЛЕНИЕ: Берем текст ТОЛЬКО из этого узла, не из детей
+        // Это предотвращает дублирование текста
+        let text = dom_node.text_content.clone().unwrap_or_default();
+
+        (bg, text, dom_node.tag_name.clone())
+    } else {
+        (Color32::TRANSPARENT, String::new(), None)
+    };
+
+    // Рисуем прямоугольник только если есть цвет фона
+    if bg_color != Color32::TRANSPARENT {
+        let rect = Rect::from_min_size(
+            egui::pos2(offset.x + x, offset.y + y),
+            Vec2::new(width.max(1.0), height.max(1.0)),
+        );
+        painter.rect_filled(rect, 0.0, bg_color);
+    }
+
+    // Рендерим текстовый контент
+    let trimmed = text_content.trim();
+    if !trimmed.is_empty() && width > 10.0 && height > 10.0 {
+        let text_color = if let Some(color_css) = &node.style.color {
+            parse_css_color(color_css).unwrap_or(Color32::BLACK)
+        } else {
+            Color32::BLACK
+        };
+
+        // Определяем размер шрифта в зависимости от тега
+        let mut font_size = node.style.font_size;
+        if let Some(tag) = &tag_name {
+            font_size = match tag.as_str() {
+                "h1" => 32.0,
+                "h2" => 28.0,
+                "h3" => 24.0,
+                "h4" => 20.0,
+                "h5" => 18.0,
+                "h6" => 16.0,
+                _ => font_size,
+            };
+        }
+
+        font_size = font_size.clamp(8.0, 48.0);
+
+        let rect = Rect::from_min_size(
+            egui::pos2(offset.x + x, offset.y + y),
+            Vec2::new(width, height),
+        );
+        let text_pos = rect.min + Vec2::new(4.0, 4.0);
+
+        painter.text(
+            text_pos,
+            egui::Align2::LEFT_TOP,
+            trimmed,
+            FontId::proportional(font_size),
+            text_color,
+        );
+    }
+
+    // Рекурсивно рендерим дочерние узлы
+    for child in &node.children {
+        render_clean_layout(painter, offset, child, dom);
     }
 }
