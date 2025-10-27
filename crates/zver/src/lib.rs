@@ -38,6 +38,12 @@ impl Zver {
     }
 
     pub async fn load_url(&self, url: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // Инициализируем resource_loader при первом использовании
+        {
+            let mut loader = self.resource_loader.write().await;
+            loader.init().await;
+        }
+
         let html = {
             let mut network = self.network.write().await;
             network.fetch(url).await?

@@ -17,15 +17,29 @@ pub enum ResourceRequest {
 }
 
 pub struct ResourceLoader {
-    request_tx: mpsc::UnboundedSender<ResourceRequest>,
-    response_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<Resource>>>,
+    request_tx: Option<mpsc::UnboundedSender<ResourceRequest>>,
+    response_rx: Option<Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<Resource>>>>,
     worker_handle: Option<JoinHandle<()>>,
     #[allow(dead_code)]
-    client: reqwest::Client,
+    client: Option<reqwest::Client>,
 }
 
 impl ResourceLoader {
     pub fn new() -> Self {
+        Self {
+            request_tx: None,
+            response_rx: None,
+            worker_handle: None,
+            client: None,
+        }
+    }
+
+    // Инициализация внутри async контекста
+    pub async fn init(&mut self) {
+        if self.request_tx.is_some() {
+            return; // Уже инициализирован
+        }
+
         let (request_tx, request_rx) = mpsc::unbounded_channel();
         let (response_tx, response_rx) = mpsc::unbounded_channel();
         
@@ -42,12 +56,10 @@ impl ResourceLoader {
             Self::worker_loop(request_rx, response_tx, loader_client).await;
         });
 
-        Self {
-            request_tx,
-            response_rx: Arc::new(tokio::sync::Mutex::new(response_rx)),
-            worker_handle: Some(worker_handle),
-            client,
-        }
+        self.request_tx = Some(request_tx);
+        self.response_rx = Some(Arc::new(tokio::sync::Mutex::new(response_rx)));
+        self.worker_handle = Some(worker_handle);
+        self.client = Some(client);
     }
 
     // Фоновый воркер для загрузки ресурсов
@@ -154,26 +166,35 @@ impl ResourceLoader {
 
     // Запрос на загрузку CSS
     pub fn request_css(&self, url: String) {
-        let _ = self.request_tx.send(ResourceRequest::Css(url));
+        if let Some(tx) = &self.request_tx {
+            let _ = tx.send(ResourceRequest::Css(url));
+        }
     }
 
     // Запрос на загрузку изображения
     pub fn request_image(&self, url: String) {
-        let _ = self.request_tx.send(ResourceRequest::Image(url));
+        if let Some(tx) = &self.request_tx {
+            let _ = tx.send(ResourceRequest::Image(url));
+        }
     }
 
     // Запрос на загрузку скрипта
     pub fn request_script(&self, url: String) {
-        let _ = self.request_tx.send(ResourceRequest::Script(url));
+        if let Some(tx) = &self.request_tx {
+            let _ = tx.send(ResourceRequest::Script(url));
+        }
     }
 
     // Получение загруженных ресурсов (неблокирующая)
     pub async fn poll_resources(&self) -> Vec<Resource> {
         let mut resources = Vec::new();
-        let mut rx = self.response_rx.lock().await;
         
-        while let Ok(resource) = rx.try_recv() {
-            resources.push(resource);
+        if let Some(rx) = &self.response_rx {
+            let mut rx_guard = rx.lock().await;
+            
+            while let Ok(resource) = rx_guard.try_recv() {
+                resources.push(resource);
+            }
         }
         
         resources

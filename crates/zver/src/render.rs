@@ -530,10 +530,14 @@ impl RenderEngine {
     // Добавление изображения в батч для рендеринга
     pub fn queue_image(&mut self, url: &str, x: f32, y: f32, width: f32, height: f32) -> bool {
         if let Some(_img_tex) = self.image_cache.get(url) {
+            let state = match self.state.as_ref() {
+                Some(s) => s,
+                None => return false, // Не инициализирован
+            };
+            
             let base_idx = self.vertices.len() as u16;
 
             // Конвертируем координаты в NDC
-            let state = self.state.as_ref().unwrap();
             let ndc_x = (x / state.config.width as f32) * 2.0 - 1.0;
             let ndc_y = 1.0 - (y / state.config.height as f32) * 2.0;
             let ndc_w = (width / state.config.width as f32) * 2.0;
@@ -574,10 +578,14 @@ impl RenderEngine {
 
     // Добавление прямоугольника в батч
     pub fn queue_rect(&mut self, x: f32, y: f32, width: f32, height: f32, color: [f32; 4]) {
+        let state = match self.state.as_ref() {
+            Some(s) => s,
+            None => return, // Не инициализирован, пропускаем
+        };
+        
         let base_idx = self.vertices.len() as u16;
 
         // Конвертируем координаты в NDC (Normalized Device Coordinates)
-        let state = self.state.as_ref().unwrap();
         let ndc_x = (x / state.config.width as f32) * 2.0 - 1.0;
         let ndc_y = 1.0 - (y / state.config.height as f32) * 2.0;
         let ndc_w = (width / state.config.width as f32) * 2.0;
