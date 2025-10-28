@@ -557,7 +557,15 @@ fn render_layout_tree_in_painter(
     // Не собираем рекурсивно из детей - это предотвращает дублирование
     if let Some(text) = text_content {
         let trimmed = text.trim();
-        if !trimmed.is_empty() && width > 10.0 && height > 10.0 {
+        // ВАЖНО: Рендерим текст только для текстовых узлов (tag_name == None)
+        // Это предотвращает дублирование текста из родительских элементов
+        let is_text_node = if let Some(dom_node) = dom.nodes.get(&node.dom_node) {
+            dom_node.tag_name.is_none()
+        } else {
+            false
+        };
+
+        if is_text_node && !trimmed.is_empty() && width > 10.0 && height > 10.0 {
             // Получаем цвет текста из CSS или используем чёрный по умолчанию
             let text_color = if let Some(color_css) = &node.style.color {
                 parse_css_color(color_css).unwrap_or(Color32::BLACK)
@@ -568,12 +576,23 @@ fn render_layout_tree_in_painter(
             let font_size = node.style.font_size.clamp(8.0, 32.0);
             let text_pos = rect.min + Vec2::new(4.0, 4.0);
 
+            // Для жирного текста используем моноширинный шрифт или увеличиваем размер
+            // Egui имеет ограниченную поддержку различных начертаний
+            let (font_id, adjusted_color) = match (node.style.font_weight, node.style.font_style) {
+                (zver::layout::FontWeight::Bold, _) => {
+                    // Для жирного текста используем Monospace (визуально выглядит жирнее)
+                    // или можно использовать чуть больший размер
+                    (egui::FontId::monospace(font_size), text_color)
+                }
+                _ => (egui::FontId::proportional(font_size), text_color),
+            };
+
             painter.text(
                 text_pos,
                 egui::Align2::LEFT_TOP,
                 trimmed,
-                egui::FontId::proportional(font_size),
-                text_color,
+                font_id,
+                adjusted_color,
             );
         }
     } else {
@@ -670,7 +689,7 @@ fn render_clean_layout(
     node: &zver::layout::LayoutNode,
     dom: &zver::dom::Document,
 ) {
-    use egui::{Color32, FontId, Rect, Vec2};
+    use egui::{Color32, Rect, Vec2};
 
     let x = node.dimensions.x;
     let y = node.dimensions.y;
@@ -713,7 +732,10 @@ fn render_clean_layout(
 
     // Рендерим текстовый контент
     let trimmed = text_content.trim();
-    if !trimmed.is_empty() && width > 10.0 && height > 10.0 {
+    // ВАЖНО: Рендерим текст только для текстовых узлов (tag_name == None)
+    let is_text_node = tag_name.is_none();
+
+    if is_text_node && !trimmed.is_empty() && width > 10.0 && height > 10.0 {
         let text_color = if let Some(color_css) = &node.style.color {
             parse_css_color(color_css).unwrap_or(Color32::BLACK)
         } else {
@@ -742,11 +764,21 @@ fn render_clean_layout(
         );
         let text_pos = rect.min + Vec2::new(4.0, 4.0);
 
+        // Для жирного текста используем моноширинный шрифт
+        // Egui имеет ограниченную поддержку различных начертаний
+        let font_id = match (node.style.font_weight, node.style.font_style) {
+            (zver::layout::FontWeight::Bold, _) => {
+                // Для жирного текста используем Monospace (визуально выглядит жирнее)
+                egui::FontId::monospace(font_size)
+            }
+            _ => egui::FontId::proportional(font_size),
+        };
+
         painter.text(
             text_pos,
             egui::Align2::LEFT_TOP,
             trimmed,
-            FontId::proportional(font_size),
+            font_id,
             text_color,
         );
     }

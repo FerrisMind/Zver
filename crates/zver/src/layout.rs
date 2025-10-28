@@ -28,6 +28,9 @@ pub struct ComputedStyle {
     pub background_color: Option<String>,
     pub color: Option<String>,
     pub font_size: f32,
+    pub font_weight: FontWeight,
+    pub font_style: FontStyle,
+    pub list_style_type: ListStyleType,
 }
 
 impl Default for ComputedStyle {
@@ -40,6 +43,9 @@ impl Default for ComputedStyle {
             background_color: None,
             color: None,
             font_size: 16.0,
+            font_weight: FontWeight::Normal,
+            font_style: FontStyle::Normal,
+            list_style_type: ListStyleType::None,
         }
     }
 }
@@ -64,6 +70,27 @@ pub enum Size {
     Auto,
     Px(f32),
     Percent(f32),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FontWeight {
+    Normal,
+    Bold,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FontStyle {
+    Normal,
+    Italic,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListStyleType {
+    None,
+    Disc,
+    Circle,
+    Square,
+    Decimal,
 }
 
 pub struct LayoutEngine {
@@ -130,14 +157,84 @@ impl Default for LayoutEngine {
     }
 }
 
-fn compute_style_for_node(
+// Применяет стили по умолчанию для HTML тегов
+fn apply_default_tag_styles(style: &mut ComputedStyle, tag_name: &Option<String>) {
+    if let Some(tag) = tag_name {
+        match tag.as_str() {
+            // Заголовки
+            "h1" => {
+                style.font_size = 32.0;
+                style.font_weight = FontWeight::Bold;
+                style.display = Display::Block;
+            }
+            "h2" => {
+                style.font_size = 24.0;
+                style.font_weight = FontWeight::Bold;
+                style.display = Display::Block;
+            }
+            "h3" => {
+                style.font_size = 19.0;
+                style.font_weight = FontWeight::Bold;
+                style.display = Display::Block;
+            }
+            "h4" => {
+                style.font_size = 16.0;
+                style.font_weight = FontWeight::Bold;
+                style.display = Display::Block;
+            }
+            "h5" => {
+                style.font_size = 13.0;
+                style.font_weight = FontWeight::Bold;
+                style.display = Display::Block;
+            }
+            "h6" => {
+                style.font_size = 11.0;
+                style.font_weight = FontWeight::Bold;
+                style.display = Display::Block;
+            }
+
+            // Жирный текст
+            "b" | "strong" => {
+                style.font_weight = FontWeight::Bold;
+                style.display = Display::Inline;
+            }
+
+            // Курсив
+            "i" | "em" => {
+                style.font_style = FontStyle::Italic;
+                style.display = Display::Inline;
+            }
+
+            // Выделение текста
+            "mark" => {
+                style.background_color = Some("#ffff00".to_string());
+                style.display = Display::Inline;
+            }
+
+            // Списки
+            "ul" => {
+                style.display = Display::Block;
+                style.list_style_type = ListStyleType::Disc;
+            }
+            "ol" => {
+                style.display = Display::Block;
+                style.list_style_type = ListStyleType::Decimal;
+            }
+            "li" => {
+                style.display = Display::Block;
+            }
+
+            _ => {}
+        }
+    }
+}
+
+// Применяет CSS стили из таблицы стилей
+fn apply_css_styles(
+    style: &mut ComputedStyle,
     styles: &HashMap<usize, HashMap<String, String>>,
     node_id: usize,
-    parent: Option<&ComputedStyle>,
-) -> ComputedStyle {
-    let mut style = ComputedStyle::default();
-    inherit_properties(&mut style, parent);
-
+) {
     let node_styles = styles.get(&node_id).cloned().unwrap_or_default();
 
     if let Some(display) = node_styles.get("display") {
@@ -181,7 +278,29 @@ fn compute_style_for_node(
         style.font_size = size;
     }
 
-    style
+    if let Some(weight) = node_styles.get("font-weight") {
+        style.font_weight = match weight.as_str() {
+            "bold" | "700" | "800" | "900" => FontWeight::Bold,
+            _ => FontWeight::Normal,
+        };
+    }
+
+    if let Some(font_style) = node_styles.get("font-style") {
+        style.font_style = match font_style.as_str() {
+            "italic" | "oblique" => FontStyle::Italic,
+            _ => FontStyle::Normal,
+        };
+    }
+
+    if let Some(list_style) = node_styles.get("list-style-type") {
+        style.list_style_type = match list_style.as_str() {
+            "disc" => ListStyleType::Disc,
+            "circle" => ListStyleType::Circle,
+            "square" => ListStyleType::Square,
+            "decimal" => ListStyleType::Decimal,
+            _ => ListStyleType::None,
+        };
+    }
 }
 
 fn parse_size(value: &str) -> Size {
@@ -218,7 +337,17 @@ fn build_layout_node(
         }
     }
 
-    let style = compute_style_for_node(styles, node_id, parent_style);
+    // Сначала создаём базовый стиль с наследованием
+    let mut style = ComputedStyle::default();
+
+    // Применяем стили по умолчанию для HTML тегов (базовые стили браузера)
+    apply_default_tag_styles(&mut style, &node.tag_name);
+
+    // ЗАТЕМ наследуем от родителя (родитель может перезаписать некоторые свойства)
+    inherit_properties(&mut style, parent_style);
+
+    // Наконец применяем CSS стили (они перезаписывают всё)
+    apply_css_styles(&mut style, styles, node_id);
 
     if matches!(style.display, Display::None) {
         return None;
@@ -244,11 +373,25 @@ fn build_layout_node(
 
 fn inherit_properties(style: &mut ComputedStyle, parent: Option<&ComputedStyle>) {
     if let Some(parent) = parent {
+        // Наследуем цвет только если он не установлен
         if style.color.is_none() {
             style.color = parent.color.clone();
         }
-        if style.font_size <= 0.0 {
+        // Наследуем размер шрифта только если он дефолтный
+        if style.font_size == 16.0 {
             style.font_size = parent.font_size;
+        }
+        // Наследуем background только если не установлен
+        if style.background_color.is_none() {
+            style.background_color = parent.background_color.clone();
+        }
+        // Наследуем font-weight и font-style ТОЛЬКО если они Normal
+        // Это сохраняет Bold/Italic установленный тегом
+        if matches!(style.font_weight, FontWeight::Normal) {
+            style.font_weight = parent.font_weight;
+        }
+        if matches!(style.font_style, FontStyle::Normal) {
+            style.font_style = parent.font_style;
         }
     }
 }
@@ -273,11 +416,27 @@ fn compute_dimensions(node: &mut LayoutNode, engine: &LayoutEngine, dom_node: &c
             } else {
                 match node.style.display {
                     Display::Block | Display::Flex => engine.viewport_width,
-                    Display::Inline => node
-                        .children
-                        .iter()
-                        .map(|child| child.dimensions.width)
-                        .sum::<f32>(),
+                    Display::Inline => {
+                        // Для инлайновых элементов (mark, b, i, strong, em, etc.)
+                        // ширина = сумма ширины детей
+                        let children_width: f32 = node.children
+                            .iter()
+                            .map(|child| child.dimensions.width)
+                            .sum();
+                        
+                        // Если нет детей и есть свой текст (не должно быть для правильного HTML)
+                        if children_width == 0.0 && dom_node.text_content.is_some() {
+                            if let Some(text) = &dom_node.text_content {
+                                let char_count = text.trim().chars().count() as f32;
+                                let char_width = node.style.font_size * 0.6;
+                                (char_count * char_width).min(engine.viewport_width)
+                            } else {
+                                0.0
+                            }
+                        } else {
+                            children_width.max(10.0) // Минимальная ширина
+                        }
+                    }
                     Display::None => 0.0,
                 }
             }
