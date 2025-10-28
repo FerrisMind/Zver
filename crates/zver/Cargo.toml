@@ -25,3 +25,5 @@ wgpu_text = "27.0"
 cosmic-text = "0.14"
 image = { version = "0.25", features = ["png", "jpeg", "webp"] }
 bytemuck = { version = "1.24", features = ["derive"] }
+
+

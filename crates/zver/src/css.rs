@@ -1,3 +1,5 @@
+pub mod color;
+
 use cssparser::{ParseError, Parser, ToCss, Token};
 use rayon::prelude::*;
 use std::collections::HashMap;

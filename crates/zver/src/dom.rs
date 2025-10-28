@@ -1,3 +1,5 @@
+pub mod serialization;
+
 use kuchikiki::{NodeData, NodeRef, traits::TendrilSink};
 use std::collections::HashMap;
 
