@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zver Browser Engine Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .highlight {
+            background-color: #ffff00;
+            padding: 2px 4px;
+        }
+        
+        .box {
+            width: 200px;
+            height: 100px;
+            background-color: #3498db;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Добро пожаловать в Zver!</h1>
+        <p>Экспериментальный браузерный движок на Rust</p>
+    </div>
+    
+    <div class="content">
+        <h2>Возможности движка</h2>
+        
+        <p>Zver поддерживает основные веб-технологии:</p>
+        
+        <ul>
+            <li><strong>HTML5 парсинг</strong> - полная поддержка современного HTML</li>
+            <li><strong>CSS стили</strong> - базовые свойства и селекторы</li>
+            <li><strong>JavaScript</strong> - выполнение JS кода через Boa</li>
+            <li><strong>Layout движок</strong> - вычисление позиций элементов</li>
+            <li><strong>GPU рендеринг</strong> - быстрый рендеринг через wgpu</li>
+        </ul>
+        
+        <h3>Пример стилизации</h3>
+        <p>Этот текст содержит <span class="highlight">выделенный фрагмент</span> и обычный текст.</p>
+        
+        <div class="box"></div>
+        
+        <h3>Заголовки разных уровней</h3>
+        <h4>Заголовок 4 уровня</h4>
+        <h5>Заголовок 5 уровня</h5>
+        <h6>Заголовок 6 уровня</h6>
+        
+        <p><em>Курсивный текст</em> и <strong>жирный текст</strong> также поддерживаются.</p>
+        
+        <script>
+            console.log("JavaScript работает в Zver!");
+            document.title = "Zver Demo - JS активен";
+        </script>
+    </div>
+</body>
+</html>

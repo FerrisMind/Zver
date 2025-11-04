@@ -1,10 +1,18 @@
-use super::{FontWeight, LayoutNode};
+use super::{FontWeight, LayoutNode, LayoutResult};
 use crate::css::color::{Color, parse_css_color};
-use crate::dom::Document;
+use crate::dom::{Document, Node};
 
-/// Информация о рендеринге узла
+/// Информация о рендеринге узла (новая версия для работы с LayoutResult)
 #[derive(Debug, Clone)]
 pub struct RenderInfo {
+    pub layout: crate::layout::LayoutResult,
+    pub node: crate::dom::Node,
+    pub z_index: i32,
+}
+
+/// Информация о рендеринге узла (старая версия для совместимости)
+#[derive(Debug, Clone)]
+pub struct LegacyRenderInfo {
     pub x: f32,
     pub y: f32,
     pub width: f32,
@@ -18,9 +26,10 @@ pub struct RenderInfo {
     pub is_text_node: bool,
 }
 
-impl RenderInfo {
-    /// Создает информацию о рендеринге из layout узла
-    pub fn from_layout_node(node: &LayoutNode, dom: &Document) -> Self {
+impl LegacyRenderInfo {
+    /// Создает информацию о рендеринге из layout узла (устаревший метод)
+    #[deprecated(since = "0.2.0", note = "Use RenderInfo instead")]
+    pub fn from_layout_node(node: &LayoutNode, dom: &Document) -> LegacyRenderInfo {
         let x = node.dimensions.x;
         let y = node.dimensions.y;
         let width = node.dimensions.width;
@@ -88,15 +97,50 @@ impl RenderInfo {
     }
 }
 
-/// Собирает информацию о рендеринге для всех узлов в дереве
-pub fn collect_render_info(node: &LayoutNode, dom: &Document, result: &mut Vec<RenderInfo>) {
-    let info = RenderInfo::from_layout_node(node, dom);
+impl RenderInfo {
+    /// Создает информацию о рендеринге из layout результата и DOM узла
+    pub fn new(layout: LayoutResult, node: Node) -> Self {
+        Self {
+            layout,
+            node,
+            z_index: 0, // TODO: вычислить z-index из CSS
+        }
+    }
+
+    /// Проверяет, нужно ли рендерить этот узел
+    pub fn should_render(&self) -> bool {
+        self.layout.width > 0.0 && self.layout.height > 0.0
+    }
+}
+
+/// Собирает информацию о рендеринге для всех узлов в дереве (устаревший метод)
+#[deprecated(
+    since = "0.2.0",
+    note = "Use LayoutEngine::collect_render_info instead"
+)]
+#[allow(deprecated)]
+pub fn collect_legacy_render_info(
+    node: &LayoutNode,
+    dom: &Document,
+    result: &mut Vec<LegacyRenderInfo>,
+) {
+    let info = LegacyRenderInfo::from_layout_node(node, dom);
     if info.should_render() {
         result.push(info);
     }
 
     // Рекурсивно обрабатываем дочерние узлы
     for child in &node.children {
-        collect_render_info(child, dom, result);
+        collect_legacy_render_info(child, dom, result);
     }
+}
+
+/// Собирает информацию о рендеринге для всех узлов в дереве (устаревший алиас для совместимости)
+#[deprecated(
+    since = "0.2.0",
+    note = "Use LayoutEngine::collect_render_info instead"
+)]
+#[allow(deprecated)]
+pub fn collect_render_info(node: &LayoutNode, dom: &Document, result: &mut Vec<LegacyRenderInfo>) {
+    collect_legacy_render_info(node, dom, result);
 }

@@ -26,4 +26,12 @@ cosmic-text = "0.14"
 image = { version = "0.25", features = ["png", "jpeg", "webp"] }
 bytemuck = { version = "1.24", features = ["derive"] }
 
+[[example]]
+name = "basic_usage"
+path = "../../examples/basic_usage.rs"
+
+[[example]]
+name = "layout_inspection"
+path = "../../examples/layout_inspection.rs"
+
 

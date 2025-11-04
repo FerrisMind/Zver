@@ -1,4 +1,3 @@
-pub mod compute;
 pub mod render;
 pub mod styles;
 pub mod taffy_integration;
@@ -11,69 +10,481 @@ use crate::dom::Document;
 use std::collections::HashMap;
 use taffy::prelude::*;
 
+/// Метрики шрифта для измерения текста
+struct FontMetrics {
+    char_width: f32,  // коэффициент ширины символа относительно font_size
+    char_height: f32, // коэффициент высоты строки относительно font_size
+}
+
+/// Функция измерения текста для Taffy (свободная функция)
+fn text_measure_function_impl(
+    known_dimensions: taffy::Size<Option<f32>>,
+    available_space: taffy::Size<taffy::AvailableSpace>,
+    node_context: Option<&TextMeasureContext>,
+    font_metrics: &FontMetrics,
+) -> taffy::Size<f32> {
+    // Если размеры уже известны и положительные, возвращаем их
+    if let taffy::Size {
+        width: Some(width),
+        height: Some(height),
+    } = known_dimensions
+        && width > 0.0
+        && height > 0.0
+    {
+        return taffy::Size { width, height };
+    }
+
+    // Если нет текстового контекста, возвращаем нулевой размер
+    let Some(text_ctx) = node_context else {
+        return taffy::Size::ZERO;
+    };
+
+    // Применяем алгоритм измерения текста
+    let words: Vec<&str> = text_ctx.content.split_whitespace().collect();
+    if words.is_empty() {
+        return taffy::Size::ZERO;
+    }
+
+    let char_width = text_ctx.font_size * font_metrics.char_width;
+    let line_height = text_ctx.font_size * font_metrics.char_height;
+
+    let min_line_length: usize = words.iter().map(|word| word.len()).max().unwrap_or(0);
+    let max_line_length: usize =
+        words.iter().map(|word| word.len()).sum::<usize>() + words.len().saturating_sub(1);
+
+    let width = known_dimensions
+        .width
+        .unwrap_or_else(|| match available_space.width {
+            taffy::AvailableSpace::MinContent => min_line_length as f32 * char_width,
+            taffy::AvailableSpace::MaxContent => max_line_length as f32 * char_width,
+            taffy::AvailableSpace::Definite(w) => w
+                .min(max_line_length as f32 * char_width)
+                .max(min_line_length as f32 * char_width),
+        });
+
+    let height = known_dimensions.height.unwrap_or_else(|| {
+        let chars_per_line = (width / char_width).floor() as usize;
+        if chars_per_line == 0 {
+            return line_height;
+        }
+
+        let mut line_count = 1;
+        let mut current_line_length = 0;
+
+        for word in &words {
+            if current_line_length == 0 {
+                current_line_length = word.len();
+            } else if current_line_length + word.len() + 1 > chars_per_line {
+                line_count += 1;
+                current_line_length = word.len();
+            } else {
+                current_line_length += word.len() + 1;
+            }
+        }
+
+        line_count as f32 * line_height
+    });
+
+    taffy::Size { width, height }
+}
+
 pub struct LayoutEngine {
     viewport_width: f32,
     viewport_height: f32,
+
+    // Taffy layout engine с поддержкой текстовых контекстов
+    taffy: TaffyTree<Option<TextMeasureContext>>,
+
+    // Кеширование результатов
+    root_node: Option<NodeId>,
+    node_mapping: HashMap<usize, NodeId>, // DOM ID -> Taffy NodeId
+    layout_cache: HashMap<usize, LayoutResult>, // Результаты layout по DOM ID
+
+    // Deprecated - для обратной совместимости
+    #[deprecated(since = "0.2.0", note = "Use layout_cache instead")]
     pub layout_tree: Option<LayoutNode>,
-    taffy: TaffyTree<()>,
 }
 
 unsafe impl Send for LayoutEngine {}
 unsafe impl Sync for LayoutEngine {}
 
 impl LayoutEngine {
+    #[allow(deprecated)]
     pub fn new(viewport_width: f32, viewport_height: f32) -> Self {
         Self {
             viewport_width,
             viewport_height,
-            layout_tree: None,
             taffy: TaffyTree::new(),
+            root_node: None,
+            node_mapping: HashMap::new(),
+            layout_cache: HashMap::new(),
+            layout_tree: None,
         }
     }
 
+    #[deprecated(since = "0.2.0", note = "Use compute_layout() instead")]
+    #[allow(deprecated)]
     pub fn compute(
+        &mut self,
+        _document: &Document,
+        _styles: &HashMap<usize, HashMap<String, String>>,
+    ) -> Option<&LayoutNode> {
+        // Временная заглушка - будет удалена в Фазе 3
+        // Пока сохраняем старое поведение для совместимости
+        self.layout_tree.as_ref()
+    }
+
+    #[allow(deprecated)]
+    pub fn layout_tree(&self) -> Option<&LayoutNode> {
+        self.layout_tree.as_ref()
+    }
+
+    /// Сбрасывает состояние при изменении DOM/CSS
+    #[allow(deprecated)]
+    pub fn invalidate(&mut self) {
+        if let Some(root) = self.root_node.take() {
+            let _ = self.taffy.remove(root);
+        }
+        self.taffy.clear();
+        self.node_mapping.clear();
+        self.layout_cache.clear();
+        self.layout_tree = None;
+    }
+
+    /// Вычисляет layout с использованием Taffy (новый API)
+    pub fn compute_layout(
         &mut self,
         document: &Document,
         styles: &HashMap<usize, HashMap<String, String>>,
-    ) -> Option<&LayoutNode> {
-        let root_id = document.root?;
-
-        // Строим Taffy-дерево из DOM
-        let taffy_root =
-            taffy_integration::build_taffy_tree(&mut self.taffy, document, root_id, styles);
-
-        // Вычисляем лейаут
-        let _ = self
-            .taffy
-            .compute_layout(
-                taffy_root,
-                taffy::Size {
-                    width: AvailableSpace::Definite(self.viewport_width),
-                    height: AvailableSpace::Definite(self.viewport_height),
-                },
-            )
-            .ok();
-
-        // Строим нашу структурированную модель для дальнейшего рендера
-        self.layout_tree = compute::build_layout_node(
-            document,
-            root_id,
-            styles,
-            self.viewport_width,
-            self.viewport_height,
-            None,
-        );
-
-        // Устанавливаем позиции всех узлов
-        if let Some(tree) = &mut self.layout_tree {
-            compute::compute_positions(tree, 0.0, 0.0);
+    ) -> HashMap<usize, LayoutResult> {
+        // 1. Строим Taffy дерево с контекстами для текста (очищает старое состояние)
+        if self
+            .build_taffy_tree_with_contexts(document, styles)
+            .is_none()
+        {
+            return HashMap::new();
         }
 
-        self.layout_tree.as_ref()
+        // 2. Вычисляем лейауты с измерением текста
+        self.compute_taffy_layouts();
+
+        // 3. Извлекаем и кешируем результаты
+        self.extract_and_cache_results(document);
+
+        // 4. Для совместимости обновляем устаревшую структуру
+        self.update_legacy_layout_tree(document, styles);
+
+        // 5. Возвращаем результаты
+        self.layout_cache.clone()
     }
 
-    pub fn layout_tree(&self) -> Option<&LayoutNode> {
-        self.layout_tree.as_ref()
+    /// Получает результат layout для конкретного узла
+    pub fn get_layout_result(&self, node_id: usize) -> Option<LayoutResult> {
+        self.layout_cache.get(&node_id).copied()
+    }
+
+    /// Получает все результаты layout
+    pub fn get_all_layout_results(&self) -> &HashMap<usize, LayoutResult> {
+        &self.layout_cache
+    }
+
+    /// Обновляет устаревшую структуру LayoutNode для совместимости
+    #[allow(deprecated)]
+    fn update_legacy_layout_tree(
+        &mut self,
+        document: &Document,
+        styles: &HashMap<usize, HashMap<String, String>>,
+    ) {
+        // Создаем LayoutNode из результатов Taffy для обратной совместимости
+        if let Some(root_id) = document.root {
+            self.layout_tree = self.build_legacy_layout_node(document, styles, root_id);
+        }
+    }
+
+    /// Рекурсивно строит LayoutNode из результатов Taffy
+    fn build_legacy_layout_node(
+        &self,
+        document: &Document,
+        styles: &HashMap<usize, HashMap<String, String>>,
+        node_id: usize,
+    ) -> Option<LayoutNode> {
+        let layout_result = self.layout_cache.get(&node_id)?;
+        let node_styles = styles.get(&node_id).cloned().unwrap_or_default();
+        let computed_style = ComputedStyle::from_css_properties(&node_styles);
+
+        let mut children = Vec::new();
+        if let Some(dom_node) = document.nodes.get(&node_id) {
+            for &child_id in &dom_node.children {
+                if let Some(child) = self.build_legacy_layout_node(document, styles, child_id) {
+                    children.push(child);
+                }
+            }
+        }
+
+        Some(LayoutNode {
+            style: computed_style,
+            dimensions: Dimensions {
+                x: layout_result.x,
+                y: layout_result.y,
+                width: layout_result.width,
+                height: layout_result.height,
+            },
+            children,
+            dom_node: node_id,
+        })
+    }
+
+    /// Строит Taffy дерево с контекстами для текстовых узлов
+    #[allow(deprecated)]
+    fn build_taffy_tree_with_contexts(
+        &mut self,
+        document: &Document,
+        styles: &HashMap<usize, HashMap<String, String>>,
+    ) -> Option<NodeId> {
+        // Очищаем старое состояние
+        if let Some(root) = self.root_node.take() {
+            let _ = self.taffy.remove(root);
+        }
+        self.taffy.clear();
+        self.node_mapping.clear();
+        self.layout_cache.clear();
+        self.layout_tree = None;
+
+        let root_id = document.root?;
+        let taffy_root = self.build_node_recursive(document, root_id, styles)?;
+        self.root_node = Some(taffy_root);
+        Some(taffy_root)
+    }
+
+    /// Рекурсивно строит узел Taffy дерева
+    fn build_node_recursive(
+        &mut self,
+        document: &Document,
+        dom_node_id: usize,
+        styles: &HashMap<usize, HashMap<String, String>>,
+    ) -> Option<NodeId> {
+        // Получаем стили для узла
+        let node_styles = styles.get(&dom_node_id).cloned().unwrap_or_default();
+
+        let mut computed_style = ComputedStyle::from_css_properties(&node_styles);
+
+        // Для корневого элемента принудительно устанавливаем размеры viewport
+        if document.root == Some(dom_node_id) {
+            computed_style.width = crate::layout::types::Size::Px(self.viewport_width);
+            computed_style.height = crate::layout::types::Size::Px(self.viewport_height);
+            computed_style.display = crate::layout::types::Display::Block;
+        }
+
+        // Пропускаем элементы с display: none
+        if matches!(computed_style.display, crate::layout::types::Display::None) {
+            return None;
+        }
+
+        // Пропускаем служебные теги, которые не должны рендериться
+        if let Some(node) = document.nodes.get(&dom_node_id)
+            && let Some(tag) = &node.tag_name
+        {
+            match tag.as_str() {
+                "script" | "style" | "head" | "meta" | "link" | "title" => return None,
+                _ => {}
+            }
+        }
+
+        // Пропускаем пустые текстовые узлы
+        if let Some(node) = document.nodes.get(&dom_node_id)
+            && node.tag_name.is_none()
+        {
+            if let Some(text) = &node.text_content {
+                if text.trim().is_empty() {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        }
+
+        // Создаем контекст для текстовых узлов
+        let context = if let Some(node) = document.nodes.get(&dom_node_id) {
+            if node.tag_name.is_none() {
+                // текстовый узел
+                Some(TextMeasureContext {
+                    content: node.text_content.clone().unwrap_or_default(),
+                    font_size: computed_style.font_size,
+                    font_weight: computed_style.font_weight,
+                    font_style: computed_style.font_style,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Рекурсивно создаем детей
+        let mut taffy_children = Vec::new();
+        if let Some(dom_node) = document.nodes.get(&dom_node_id) {
+            for &child_dom_id in &dom_node.children {
+                if let Some(child_taffy_id) =
+                    self.build_node_recursive(document, child_dom_id, styles)
+                {
+                    taffy_children.push(child_taffy_id);
+                }
+            }
+        }
+
+        // Создаем Taffy узел
+        let taffy_node_id = if context.is_some() {
+            // Текстовый узел - leaf с контекстом
+            self.taffy
+                .new_leaf_with_context(computed_style.to_taffy_style(), context)
+                .ok()?
+        } else if taffy_children.is_empty() {
+            // Обычный элемент без детей - leaf без контекста
+            self.taffy.new_leaf(computed_style.to_taffy_style()).ok()?
+        } else {
+            // Элемент с детьми - контейнер
+            self.taffy
+                .new_with_children(computed_style.to_taffy_style(), &taffy_children)
+                .ok()?
+        };
+
+        // Сохраняем mapping
+        self.node_mapping.insert(dom_node_id, taffy_node_id);
+
+        Some(taffy_node_id)
+    }
+
+    /// Вычисляет layout с измерением текста
+    fn compute_taffy_layouts(&mut self) {
+        if let Some(root) = self.root_node {
+            let font_metrics = FontMetrics {
+                char_width: 0.6,  // эвристика: символ ≈ 0.6 от font_size
+                char_height: 1.2, // line height ≈ 1.2 от font_size
+            };
+
+            // Вычисляем layout, учитывая измерение текста
+            let _ = self.taffy.compute_layout_with_measure(
+                root,
+                taffy::Size {
+                    width: taffy::AvailableSpace::Definite(self.viewport_width),
+                    height: taffy::AvailableSpace::Definite(self.viewport_height),
+                },
+                |known_dimensions, available_space, _node_id, node_context, _style| {
+                    if let Some(text_ctx) = node_context.as_ref().and_then(|opt| opt.as_ref()) {
+                        // Это текстовый узел - измеряем текст
+                        text_measure_function_impl(
+                            known_dimensions,
+                            available_space,
+                            Some(text_ctx),
+                            &font_metrics,
+                        )
+                    } else {
+                        // Это обычный элемент - используем заданные размеры (если есть)
+                        known_dimensions.unwrap_or(taffy::Size::ZERO)
+                    }
+                },
+            );
+        }
+    }
+
+    /// Извлекает результаты layout из Taffy и кеширует их
+    fn extract_and_cache_results(&mut self, document: &Document) {
+        self.layout_cache.clear();
+
+        if let Some(root_id) = document.root
+            && let Some(&taffy_root) = self.node_mapping.get(&root_id)
+        {
+            self.extract_node_layout(document, root_id, taffy_root, 0.0, 0.0);
+        }
+    }
+
+    fn extract_node_layout(
+        &mut self,
+        document: &Document,
+        dom_node_id: usize,
+        taffy_id: NodeId,
+        parent_x: f32,
+        parent_y: f32,
+    ) {
+        if let Ok(layout) = self.taffy.layout(taffy_id) {
+            let abs_x = parent_x + layout.location.x;
+            let abs_y = parent_y + layout.location.y;
+
+            let layout_result = LayoutResult {
+                node_id: dom_node_id,
+                x: abs_x,
+                y: abs_y,
+                width: layout.size.width,
+                height: layout.size.height,
+                content_x: abs_x + layout.border.left + layout.padding.left,
+                content_y: abs_y + layout.border.top + layout.padding.top,
+                content_width: layout.content_size.width,
+                content_height: layout.content_size.height,
+            };
+            self.layout_cache.insert(dom_node_id, layout_result);
+
+            if let Some(dom_node) = document.nodes.get(&dom_node_id) {
+                for &child_dom_id in &dom_node.children {
+                    if let Some(&child_taffy_id) = self.node_mapping.get(&child_dom_id) {
+                        self.extract_node_layout(
+                            document,
+                            child_dom_id,
+                            child_taffy_id,
+                            abs_x,
+                            abs_y,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Собирает информацию для рендеринга из кеша результатов
+    pub fn collect_render_info(&self, document: &Document) -> Vec<RenderInfo> {
+        let mut render_list = Vec::new();
+
+        if let Some(root_id) = document.root {
+            self.collect_render_info_recursive(&mut render_list, document, root_id);
+        }
+
+        render_list
+    }
+
+    /// Получает RenderInfo для всех результатов layout
+    pub fn get_all_render_info(&self, document: &Document) -> Vec<RenderInfo> {
+        self.layout_cache
+            .iter()
+            .filter_map(|(&node_id, &layout_result)| {
+                document
+                    .nodes
+                    .get(&node_id)
+                    .map(|node| RenderInfo::new(layout_result, node.clone()))
+            })
+            .collect()
+    }
+
+    /// Рекурсивно собирает информацию для рендеринга
+    fn collect_render_info_recursive(
+        &self,
+        render_list: &mut Vec<RenderInfo>,
+        document: &Document,
+        dom_node_id: usize,
+    ) {
+        if let (Some(layout_result), Some(dom_node)) = (
+            self.layout_cache.get(&dom_node_id),
+            document.nodes.get(&dom_node_id),
+        ) {
+            render_list.push(RenderInfo {
+                layout: *layout_result,
+                node: dom_node.clone(),
+                z_index: 0, // TODO: вычислить z-index
+            });
+
+            // Рекурсивно обрабатываем детей
+            for &child_id in &dom_node.children {
+                self.collect_render_info_recursive(render_list, document, child_id);
+            }
+        }
     }
 }
 

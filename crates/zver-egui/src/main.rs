@@ -4,7 +4,7 @@ use tokio::runtime::Runtime;
 use zver::Zver;
 use zver::dom::serialization::serialize_dom;
 mod egui_integration;
-use egui_integration::{render_clean_layout, render_layout_tree_in_painter};
+use egui_integration::{render_clean_layout_from_results, render_layout_results_in_painter};
 
 fn main() -> eframe::Result {
     let native_options = eframe::NativeOptions::default();
@@ -74,11 +74,9 @@ impl ZverApp {
             );
 
             // Статистика Layout
-            let layout_stats = if let Some(tree) = &layout.layout_tree {
-                format!(
-                    "Layout вычислен: {}x{}",
-                    tree.dimensions.width, tree.dimensions.height
-                )
+            let layout_results = layout.get_all_layout_results();
+            let layout_stats = if !layout_results.is_empty() {
+                format!("Layout вычислен: {} элементов", layout_results.len())
             } else {
                 "Layout не вычислен".to_string()
             };
@@ -231,15 +229,9 @@ impl ZverApp {
                         let layout = engine_clone.layout.read().await;
                         let dom = engine_clone.dom.read().await;
 
-                        if let Some(tree) = &layout.layout_tree {
-                            ui.label(format!(
-                                "Root dimensions: x={}, y={}, w={}, h={}",
-                                tree.dimensions.x,
-                                tree.dimensions.y,
-                                tree.dimensions.width,
-                                tree.dimensions.height
-                            ));
-                            ui.label(format!("Root children count: {}", tree.children.len()));
+                        let render_info = layout.get_all_render_info(&dom);
+                        if !render_info.is_empty() {
+                            ui.label(format!("Layout results: {} elements", render_info.len()));
 
                             let mut text_nodes = 0;
                             let mut empty_nodes = 0;
@@ -261,24 +253,23 @@ impl ZverApp {
                             ui.separator();
 
                             egui::ScrollArea::both().show(ui, |ui| {
-                                let canvas_width = tree.dimensions.width.max(1200.0);
-                                let canvas_height = tree.dimensions.height.max(1000.0);
+                                let canvas_width = 1200.0;
+                                let canvas_height = 1000.0;
 
                                 let (response, painter) = ui.allocate_painter(
                                     egui::vec2(canvas_width, canvas_height),
                                     egui::Sense::hover(),
                                 );
 
-                                render_layout_tree_in_painter(
+                                render_layout_results_in_painter(
                                     &painter,
                                     response.rect.min,
-                                    tree,
+                                    &render_info,
                                     &dom,
-                                    0,
                                 );
                             });
                         } else {
-                            ui.label("Layout tree не построен");
+                            ui.label("Layout результаты не найдены");
                         }
                     });
                 });
@@ -305,22 +296,25 @@ impl ZverApp {
                         let layout = engine_clone.layout.read().await;
                         let dom = engine_clone.dom.read().await;
 
-                        if let Some(tree) = &layout.layout_tree {
+                        let render_info = layout.get_all_render_info(&dom);
+                        if !render_info.is_empty() {
                             egui::ScrollArea::both().show(ui, |ui| {
                                 let (response, painter) = ui.allocate_painter(
-                                    egui::vec2(
-                                        tree.dimensions.width.max(800.0),
-                                        tree.dimensions.height.max(600.0),
-                                    ),
+                                    egui::vec2(1024.0, 768.0),
                                     egui::Sense::hover(),
                                 );
 
                                 painter.rect_filled(response.rect, 0.0, egui::Color32::WHITE);
 
-                                render_clean_layout(&painter, response.rect.min, tree, &dom);
+                                render_clean_layout_from_results(
+                                    &painter,
+                                    response.rect.min,
+                                    &render_info,
+                                    &dom,
+                                );
                             });
                         } else {
-                            ui.label("Layout tree не построен. Загрузите страницу.");
+                            ui.label("Layout результаты не найдены. Загрузите страницу.");
                         }
                     });
                 });

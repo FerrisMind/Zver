@@ -1,10 +1,10 @@
 use zver::css::color::{Color, get_default_color_for_tag, parse_css_color};
 use zver::dom::Document;
-use zver::layout::LayoutNode;
+use zver::layout::RenderInfo;
 
-/// Получает отладочную информацию о узле
-fn get_debug_info(node: &LayoutNode, dom: &Document) -> String {
-    if let Some(dom_node) = dom.nodes.get(&node.dom_node) {
+/// Получает отладочную информацию о узле по его ID
+fn get_debug_info(node_id: usize, dom: &Document) -> String {
+    if let Some(dom_node) = dom.nodes.get(&node_id) {
         if let Some(tag) = &dom_node.tag_name {
             format!("<{}>", tag)
         } else if let Some(text) = &dom_node.text_content {
@@ -29,86 +29,275 @@ pub fn color_to_egui(color: Color) -> egui::Color32 {
     egui::Color32::from_rgba_unmultiplied(color.r, color.g, color.b, color.a)
 }
 
-/// Визуальный рендеринг layout tree в egui с использованием painter
-pub fn render_layout_tree_in_painter(
+/// Визуальный рендеринг layout результатов в egui с использованием painter
+pub fn render_layout_results_in_painter(
     painter: &egui::Painter,
     offset: egui::Pos2,
-    node: &LayoutNode,
+    render_info: &[RenderInfo],
     dom: &Document,
-    _depth: usize,
 ) {
     use egui::{Color32, Rect, Stroke, Vec2};
 
-    let x = node.dimensions.x;
-    let y = node.dimensions.y;
-    let width = node.dimensions.width;
-    let height = node.dimensions.height;
+    for info in render_info {
+        let x = info.layout.x;
+        let y = info.layout.y;
+        let width = info.layout.width;
+        let height = info.layout.height;
 
-    // Пропускаем узлы с нулевыми размерами
-    if width <= 0.0 || height <= 0.0 {
-        for child in &node.children {
-            render_layout_tree_in_painter(painter, offset, child, dom, 0);
+        // Пропускаем узлы с нулевыми размерами
+        if width <= 0.0 || height <= 0.0 {
+            continue;
         }
-        return;
+
+        // Определяем цвет на основе CSS стилей или типа узла
+        let bg_color = if let Some(parsed_bg_color) = info
+            .node
+            .attributes
+            .get("style")
+            .and_then(|style| {
+                // Простой парсинг background-color из inline стиля
+                style
+                    .split(';')
+                    .find(|prop| prop.trim().starts_with("background-color:"))
+                    .and_then(|prop| prop.split(':').nth(1))
+                    .map(|val| val.trim())
+            })
+            .and_then(parse_css_color)
+        {
+            color_to_egui(parsed_bg_color)
+        } else {
+            color_to_egui(get_default_color_for_tag(&info.node.tag_name))
+        };
+
+        let text_info = get_debug_info(info.layout.node_id, dom);
+        let text_content = info.node.text_content.clone();
+
+        // Рисуем прямоугольник для этого узла
+        let rect = Rect::from_min_size(
+            egui::pos2(offset.x + x, offset.y + y),
+            Vec2::new(width.max(1.0), height.max(1.0)),
+        );
+
+        painter.rect_filled(rect, 0.0, bg_color);
+        painter.rect_stroke(
+            rect,
+            0.0,
+            Stroke::new(1.0, Color32::DARK_GRAY),
+            egui::StrokeKind::Outside,
+        );
+
+        // Рендерим текст ТОЛЬКО если он есть в этом конкретном узле
+        if let Some(text) = text_content {
+            let trimmed = text.trim();
+            let is_text_node = info.node.tag_name.is_none();
+
+            if is_text_node && !trimmed.is_empty() && width > 10.0 && height > 10.0 {
+                let text_color_parsed = if let Some(parsed_color) = info
+                    .node
+                    .attributes
+                    .get("style")
+                    .and_then(|style| {
+                        // Простой парсинг color из inline стиля
+                        style
+                            .split(';')
+                            .find(|prop| prop.trim().starts_with("color:"))
+                            .and_then(|prop| prop.split(':').nth(1))
+                            .map(|val| val.trim())
+                    })
+                    .and_then(parse_css_color)
+                {
+                    color_to_egui(parsed_color)
+                } else {
+                    Color32::BLACK
+                };
+
+                // Получаем font-size из стилей (простая эвристика)
+                let font_size = info
+                    .node
+                    .attributes
+                    .get("style")
+                    .and_then(|style| {
+                        style
+                            .split(';')
+                            .find(|prop| prop.trim().starts_with("font-size:"))
+                            .and_then(|prop| prop.split(':').nth(1))
+                            .and_then(|size| size.trim().strip_suffix("px"))
+                            .and_then(|size| size.parse::<f32>().ok())
+                    })
+                    .unwrap_or(16.0)
+                    .clamp(8.0, 32.0);
+
+                let text_pos = rect.min + Vec2::new(4.0, 4.0);
+
+                // Определяем тип шрифта на основе font-weight
+                let font_weight = info.node.attributes.get("style").and_then(|style| {
+                    style
+                        .split(';')
+                        .find(|prop| prop.trim().starts_with("font-weight:"))
+                        .and_then(|prop| prop.split(':').nth(1))
+                        .map(|weight| weight.trim())
+                });
+
+                let font_id = if font_weight.is_some_and(|w| w == "bold" || w == "700") {
+                    egui::FontId::monospace(font_size)
+                } else {
+                    egui::FontId::proportional(font_size)
+                };
+
+                painter.text(
+                    text_pos,
+                    egui::Align2::LEFT_TOP,
+                    trimmed,
+                    font_id,
+                    text_color_parsed,
+                );
+            }
+        } else {
+            // Добавляем отладочную информацию только для контейнеров без текста
+            if width > 50.0 && height > 15.0 {
+                let debug_bg = Rect::from_min_size(
+                    rect.min,
+                    Vec2::new((text_info.len() as f32 * 6.0 + 10.0).min(width), 14.0),
+                );
+                painter.rect_filled(debug_bg, 0.0, Color32::from_black_alpha(128));
+
+                let text_pos = rect.min + Vec2::new(2.0, 2.0);
+                painter.text(
+                    text_pos,
+                    egui::Align2::LEFT_TOP,
+                    format!("{} {}x{}", text_info, width as i32, height as i32),
+                    egui::FontId::proportional(9.0),
+                    Color32::WHITE,
+                );
+            }
+        }
     }
+}
 
-    // Определяем цвет на основе CSS стилей или типа узла
-    let (bg_color, text_info, text_content) = if let Some(dom_node) = dom.nodes.get(&node.dom_node)
-    {
-        let bg = if let Some(bg_css) = &node.style.background_color {
-            parse_css_color(bg_css)
-                .map(color_to_egui)
-                .unwrap_or_else(|| color_to_egui(get_default_color_for_tag(&dom_node.tag_name)))
-        } else {
-            color_to_egui(get_default_color_for_tag(&dom_node.tag_name))
+/// Чистовой рендеринг без отладочной информации
+pub fn render_clean_layout_from_results(
+    painter: &egui::Painter,
+    offset: egui::Pos2,
+    render_info: &[RenderInfo],
+    _dom: &Document,
+) {
+    use egui::{Color32, Rect, Vec2};
+
+    for info in render_info {
+        let x = info.layout.x;
+        let y = info.layout.y;
+        let width = info.layout.width;
+        let height = info.layout.height;
+
+        // Пропускаем узлы с нулевыми размерами
+        if width <= 0.0 || height <= 0.0 {
+            continue;
+        }
+
+        // Получаем DOM узел и его информацию
+        let (bg_color, text_content, tag_name) = {
+            let bg_color_parsed = if let Some(parsed_bg_color) = info
+                .node
+                .attributes
+                .get("style")
+                .and_then(|style| {
+                    style
+                        .split(';')
+                        .find(|prop| prop.trim().starts_with("background-color:"))
+                        .and_then(|prop| prop.split(':').nth(1))
+                        .map(|val| val.trim())
+                })
+                .and_then(parse_css_color)
+            {
+                color_to_egui(parsed_bg_color)
+            } else {
+                Color32::TRANSPARENT
+            };
+
+            let text = info.node.text_content.clone().unwrap_or_default();
+            (bg_color_parsed, text, info.node.tag_name.clone())
         };
 
-        let info = get_debug_info(node, dom);
-        let text = dom_node.text_content.clone();
+        // Рисуем прямоугольник только если есть цвет фона
+        if bg_color != Color32::TRANSPARENT {
+            let rect = Rect::from_min_size(
+                egui::pos2(offset.x + x, offset.y + y),
+                Vec2::new(width.max(1.0), height.max(1.0)),
+            );
+            painter.rect_filled(rect, 0.0, bg_color);
+        }
 
-        (bg, info, text)
-    } else {
-        (Color32::WHITE, "unknown".to_string(), None)
-    };
-
-    // Рисуем прямоугольник для этого узла
-    let rect = Rect::from_min_size(
-        egui::pos2(offset.x + x, offset.y + y),
-        Vec2::new(width.max(1.0), height.max(1.0)),
-    );
-
-    painter.rect_filled(rect, 0.0, bg_color);
-    painter.rect_stroke(
-        rect,
-        0.0,
-        Stroke::new(1.0, Color32::DARK_GRAY),
-        egui::StrokeKind::Outside,
-    );
-
-    // Рендерим текст ТОЛЬКО если он есть в этом конкретном узле
-    if let Some(text) = text_content {
-        let trimmed = text.trim();
-        let is_text_node = if let Some(dom_node) = dom.nodes.get(&node.dom_node) {
-            dom_node.tag_name.is_none()
-        } else {
-            false
-        };
+        // Рендерим текстовый контент
+        let trimmed = text_content.trim();
+        let is_text_node = tag_name.is_none();
 
         if is_text_node && !trimmed.is_empty() && width > 10.0 && height > 10.0 {
-            let text_color = if let Some(color_css) = &node.style.color {
-                parse_css_color(color_css)
-                    .map(color_to_egui)
-                    .unwrap_or(Color32::BLACK)
+            let text_color_parsed = if let Some(parsed_text_color) = info
+                .node
+                .attributes
+                .get("style")
+                .and_then(|style| {
+                    style
+                        .split(';')
+                        .find(|prop| prop.trim().starts_with("color:"))
+                        .and_then(|prop| prop.split(':').nth(1))
+                        .map(|val| val.trim())
+                })
+                .and_then(parse_css_color)
+            {
+                color_to_egui(parsed_text_color)
             } else {
                 Color32::BLACK
             };
 
-            let font_size = node.style.font_size.clamp(8.0, 32.0);
+            // Определяем размер шрифта в зависимости от тега
+            let mut font_size = info
+                .node
+                .attributes
+                .get("style")
+                .and_then(|style| {
+                    style
+                        .split(';')
+                        .find(|prop| prop.trim().starts_with("font-size:"))
+                        .and_then(|prop| prop.split(':').nth(1))
+                        .and_then(|size| size.trim().strip_suffix("px"))
+                        .and_then(|size| size.parse::<f32>().ok())
+                })
+                .unwrap_or(16.0);
+
+            if let Some(tag) = &tag_name {
+                font_size = match tag.as_str() {
+                    "h1" => 32.0,
+                    "h2" => 28.0,
+                    "h3" => 24.0,
+                    "h4" => 20.0,
+                    "h5" => 18.0,
+                    "h6" => 16.0,
+                    _ => font_size,
+                };
+            }
+
+            font_size = font_size.clamp(8.0, 48.0);
+
+            let rect = Rect::from_min_size(
+                egui::pos2(offset.x + x, offset.y + y),
+                Vec2::new(width, height),
+            );
             let text_pos = rect.min + Vec2::new(4.0, 4.0);
 
-            let font_id = match node.style.font_weight {
-                zver::layout::FontWeight::Bold => egui::FontId::monospace(font_size),
-                _ => egui::FontId::proportional(font_size),
+            // Определяем тип шрифта на основе font-weight
+            let font_weight = info.node.attributes.get("style").and_then(|style| {
+                style
+                    .split(';')
+                    .find(|prop| prop.trim().starts_with("font-weight:"))
+                    .and_then(|prop| prop.split(':').nth(1))
+                    .map(|weight| weight.trim())
+            });
+
+            let font_id = if font_weight.is_some_and(|w| w == "bold" || w == "700") {
+                egui::FontId::monospace(font_size)
+            } else {
+                egui::FontId::proportional(font_size)
             };
 
             painter.text(
@@ -116,133 +305,8 @@ pub fn render_layout_tree_in_painter(
                 egui::Align2::LEFT_TOP,
                 trimmed,
                 font_id,
-                text_color,
+                text_color_parsed,
             );
         }
-    } else {
-        // Добавляем отладочную информацию только для контейнеров без текста
-        if width > 50.0 && height > 15.0 {
-            let debug_bg = Rect::from_min_size(
-                rect.min,
-                Vec2::new((text_info.len() as f32 * 6.0 + 10.0).min(width), 14.0),
-            );
-            painter.rect_filled(debug_bg, 0.0, Color32::from_black_alpha(128));
-
-            let text_pos = rect.min + Vec2::new(2.0, 2.0);
-            painter.text(
-                text_pos,
-                egui::Align2::LEFT_TOP,
-                format!("{} {}x{}", text_info, width as i32, height as i32),
-                egui::FontId::proportional(9.0),
-                Color32::WHITE,
-            );
-        }
-    }
-
-    // Рекурсивно рендерим дочерние узлы
-    for child in &node.children {
-        render_layout_tree_in_painter(painter, offset, child, dom, 0);
-    }
-}
-
-/// Чистовой рендеринг без отладочной информации
-pub fn render_clean_layout(
-    painter: &egui::Painter,
-    offset: egui::Pos2,
-    node: &LayoutNode,
-    dom: &Document,
-) {
-    use egui::{Color32, Rect, Vec2};
-
-    let x = node.dimensions.x;
-    let y = node.dimensions.y;
-    let width = node.dimensions.width;
-    let height = node.dimensions.height;
-
-    // Пропускаем узлы с нулевыми размерами
-    if width <= 0.0 || height <= 0.0 {
-        for child in &node.children {
-            render_clean_layout(painter, offset, child, dom);
-        }
-        return;
-    }
-
-    // Получаем DOM узел и его информацию
-    let (bg_color, text_content, tag_name) = if let Some(dom_node) = dom.nodes.get(&node.dom_node) {
-        let bg = if let Some(bg_css) = &node.style.background_color {
-            parse_css_color(bg_css)
-                .map(color_to_egui)
-                .unwrap_or(Color32::TRANSPARENT)
-        } else {
-            Color32::TRANSPARENT
-        };
-
-        let text = dom_node.text_content.clone().unwrap_or_default();
-        (bg, text, dom_node.tag_name.clone())
-    } else {
-        (Color32::TRANSPARENT, String::new(), None)
-    };
-
-    // Рисуем прямоугольник только если есть цвет фона
-    if bg_color != Color32::TRANSPARENT {
-        let rect = Rect::from_min_size(
-            egui::pos2(offset.x + x, offset.y + y),
-            Vec2::new(width.max(1.0), height.max(1.0)),
-        );
-        painter.rect_filled(rect, 0.0, bg_color);
-    }
-
-    // Рендерим текстовый контент
-    let trimmed = text_content.trim();
-    let is_text_node = tag_name.is_none();
-
-    if is_text_node && !trimmed.is_empty() && width > 10.0 && height > 10.0 {
-        let text_color = if let Some(color_css) = &node.style.color {
-            parse_css_color(color_css)
-                .map(color_to_egui)
-                .unwrap_or(Color32::BLACK)
-        } else {
-            Color32::BLACK
-        };
-
-        // Определяем размер шрифта в зависимости от тега
-        let mut font_size = node.style.font_size;
-        if let Some(tag) = &tag_name {
-            font_size = match tag.as_str() {
-                "h1" => 32.0,
-                "h2" => 28.0,
-                "h3" => 24.0,
-                "h4" => 20.0,
-                "h5" => 18.0,
-                "h6" => 16.0,
-                _ => font_size,
-            };
-        }
-
-        font_size = font_size.clamp(8.0, 48.0);
-
-        let rect = Rect::from_min_size(
-            egui::pos2(offset.x + x, offset.y + y),
-            Vec2::new(width, height),
-        );
-        let text_pos = rect.min + Vec2::new(4.0, 4.0);
-
-        let font_id = match node.style.font_weight {
-            zver::layout::FontWeight::Bold => egui::FontId::monospace(font_size),
-            _ => egui::FontId::proportional(font_size),
-        };
-
-        painter.text(
-            text_pos,
-            egui::Align2::LEFT_TOP,
-            trimmed,
-            font_id,
-            text_color,
-        );
-    }
-
-    // Рекурсивно рендерим дочерние узлы
-    for child in &node.children {
-        render_clean_layout(painter, offset, child, dom);
     }
 }

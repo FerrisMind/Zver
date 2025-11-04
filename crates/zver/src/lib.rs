@@ -91,13 +91,14 @@ impl Zver {
             let dom_snapshot = self.dom.read().await.clone();
             let css_snapshot = self.css.read().await.computed_styles.clone();
             let mut layout = self.layout.write().await;
-            layout.compute(&dom_snapshot, &css_snapshot);
+            let _layout_results = layout.compute_layout(&dom_snapshot, &css_snapshot);
         }
 
         {
             let layout = self.layout.read().await;
+            let dom_snapshot = self.dom.read().await.clone();
             let mut render = self.render.write().await;
-            render.paint(&layout).await?;
+            render.paint(&layout, &dom_snapshot).await?;
         }
 
         Ok(())

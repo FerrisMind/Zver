@@ -59,7 +59,24 @@ impl Document {
 
         // dom уже является корневым NodeRef
         let root_id = self.build_tree(&dom);
-        self.root = Some(root_id);
+
+        // Находим настоящий корневой элемент (<html>)
+        let mut html_root_id = root_id;
+        if let Some(root_node) = self.nodes.get(&root_id) {
+            // Если корневой узел - текстовый, ищем <html> среди детей
+            if root_node.tag_name.is_none() {
+                for &child_id in &root_node.children {
+                    if let Some(child_node) = self.nodes.get(&child_id)
+                        && child_node.tag_name.as_deref() == Some("html")
+                    {
+                        html_root_id = child_id;
+                        break;
+                    }
+                }
+            }
+        }
+
+        self.root = Some(html_root_id);
 
         Ok(())
     }

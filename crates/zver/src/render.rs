@@ -77,8 +77,11 @@ impl RenderEngine {
     /// Простой метод рендеринга для совместимости
     pub async fn paint(
         &mut self,
-        _layout: &crate::layout::LayoutEngine,
+        layout: &crate::layout::LayoutEngine,
+        document: &crate::dom::Document,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        // Получаем информацию для рендеринга с использованием нового API
+        let _render_info = layout.collect_render_info(document);
         // Заглушка - основная логика рендеринга будет в других методах
         Ok(())
     }
