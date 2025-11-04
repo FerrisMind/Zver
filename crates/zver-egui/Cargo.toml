@@ -8,4 +8,3 @@ eframe = "0.33"
 egui = "0.33"
 zver = { path = "../zver" }
 tokio = { version = "1.48", features = ["rt", "rt-multi-thread", "macros"] }
-tracing = "0.1"
