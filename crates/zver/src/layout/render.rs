@@ -113,6 +113,24 @@ impl RenderInfo {
     }
 }
 
+/// Получает отладочную информацию о узле для визуализации
+pub fn get_debug_info(node: &Node) -> String {
+    if let Some(tag) = &node.tag_name {
+        format!("<{}>", tag)
+    } else if let Some(text) = &node.text_content {
+        let trimmed = text.trim();
+        let char_count = trimmed.chars().count();
+        if char_count > 30 {
+            let truncated: String = trimmed.chars().take(30).collect();
+            format!("\"{}...\"", truncated)
+        } else {
+            format!("\"{}\"", trimmed)
+        }
+    } else {
+        "node".to_string()
+    }
+}
+
 /// Собирает информацию о рендеринге для всех узлов в дереве (устаревший метод)
 #[deprecated(
     since = "0.2.0",

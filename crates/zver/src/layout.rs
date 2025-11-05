@@ -7,6 +7,7 @@ pub use render::*;
 pub use types::*;
 
 use crate::dom::Document;
+use crate::layout::styles::{apply_css_styles, apply_default_tag_styles};
 use std::collections::HashMap;
 use taffy::prelude::*;
 
@@ -99,6 +100,7 @@ pub struct LayoutEngine {
     root_node: Option<NodeId>,
     node_mapping: HashMap<usize, NodeId>, // DOM ID -> Taffy NodeId
     layout_cache: HashMap<usize, LayoutResult>, // Результаты layout по DOM ID
+    resolved_styles: HashMap<usize, types::ComputedStyle>,
 
     // Deprecated - для обратной совместимости
     #[deprecated(since = "0.2.0", note = "Use layout_cache instead")]
@@ -118,6 +120,7 @@ impl LayoutEngine {
             root_node: None,
             node_mapping: HashMap::new(),
             layout_cache: HashMap::new(),
+            resolved_styles: HashMap::new(),
             layout_tree: None,
         }
     }
@@ -148,6 +151,7 @@ impl LayoutEngine {
         self.taffy.clear();
         self.node_mapping.clear();
         self.layout_cache.clear();
+        self.resolved_styles.clear();
         self.layout_tree = None;
     }
 
@@ -188,6 +192,11 @@ impl LayoutEngine {
         &self.layout_cache
     }
 
+    /// Возвращает карту вычисленных стилей после применения каскада и наследования.
+    pub fn resolved_styles(&self) -> &HashMap<usize, types::ComputedStyle> {
+        &self.resolved_styles
+    }
+
     /// Обновляет устаревшую структуру LayoutNode для совместимости
     #[allow(deprecated)]
     fn update_legacy_layout_tree(
@@ -209,8 +218,14 @@ impl LayoutEngine {
         node_id: usize,
     ) -> Option<LayoutNode> {
         let layout_result = self.layout_cache.get(&node_id)?;
-        let node_styles = styles.get(&node_id).cloned().unwrap_or_default();
-        let computed_style = ComputedStyle::from_css_properties(&node_styles);
+        let computed_style = self
+            .resolved_styles
+            .get(&node_id)
+            .cloned()
+            .unwrap_or_else(|| {
+                let node_styles = styles.get(&node_id).cloned().unwrap_or_default();
+                ComputedStyle::from_css_properties(&node_styles)
+            });
 
         let mut children = Vec::new();
         if let Some(dom_node) = document.nodes.get(&node_id) {
@@ -248,10 +263,11 @@ impl LayoutEngine {
         self.taffy.clear();
         self.node_mapping.clear();
         self.layout_cache.clear();
+        self.resolved_styles.clear();
         self.layout_tree = None;
 
         let root_id = document.root?;
-        let taffy_root = self.build_node_recursive(document, root_id, styles)?;
+        let taffy_root = self.build_node_recursive(document, root_id, styles, None)?;
         self.root_node = Some(taffy_root);
         Some(taffy_root)
     }
@@ -262,11 +278,19 @@ impl LayoutEngine {
         document: &Document,
         dom_node_id: usize,
         styles: &HashMap<usize, HashMap<String, String>>,
+        parent_style: Option<&ComputedStyle>,
     ) -> Option<NodeId> {
         // Получаем стили для узла
         let node_styles = styles.get(&dom_node_id).cloned().unwrap_or_default();
 
-        let mut computed_style = ComputedStyle::from_css_properties(&node_styles);
+        let mut computed_style = ComputedStyle::default();
+
+        if let Some(node) = document.nodes.get(&dom_node_id) {
+            apply_default_tag_styles(&mut computed_style, &node.tag_name);
+        }
+
+        inherit_computed_style(&mut computed_style, parent_style);
+        apply_css_styles(&mut computed_style, &node_styles);
 
         // Для корневого элемента принудительно устанавливаем размеры viewport
         if document.root == Some(dom_node_id) {
@@ -279,6 +303,9 @@ impl LayoutEngine {
         if matches!(computed_style.display, crate::layout::types::Display::None) {
             return None;
         }
+
+        self.resolved_styles
+            .insert(dom_node_id, computed_style.clone());
 
         // Пропускаем служебные теги, которые не должны рендериться
         if let Some(node) = document.nodes.get(&dom_node_id)
@@ -325,7 +352,7 @@ impl LayoutEngine {
         if let Some(dom_node) = document.nodes.get(&dom_node_id) {
             for &child_dom_id in &dom_node.children {
                 if let Some(child_taffy_id) =
-                    self.build_node_recursive(document, child_dom_id, styles)
+                    self.build_node_recursive(document, child_dom_id, styles, Some(&computed_style))
                 {
                     taffy_children.push(child_taffy_id);
                 }
@@ -484,6 +511,26 @@ impl LayoutEngine {
             for &child_id in &dom_node.children {
                 self.collect_render_info_recursive(render_list, document, child_id);
             }
+        }
+    }
+}
+
+fn inherit_computed_style(style: &mut ComputedStyle, parent: Option<&ComputedStyle>) {
+    if let Some(parent) = parent {
+        if style.color.is_none() {
+            style.color = parent.color.clone();
+        }
+        if style.background_color.is_none() {
+            style.background_color = parent.background_color.clone();
+        }
+        if (style.font_size - 16.0).abs() < f32::EPSILON {
+            style.font_size = parent.font_size;
+        }
+        if matches!(style.font_weight, FontWeight::Normal) {
+            style.font_weight = parent.font_weight;
+        }
+        if matches!(style.font_style, FontStyle::Normal) {
+            style.font_style = parent.font_style;
         }
     }
 }

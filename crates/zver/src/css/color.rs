@@ -98,6 +98,21 @@ pub fn parse_css_color(color_str: &str) -> Option<Color> {
         }
     }
 
+    // rgba() формат: rgba(r, g, b, a)
+    if let Some(rgba) = color_str.strip_prefix("rgba(")
+        && let Some(rgba) = rgba.strip_suffix(')')
+    {
+        let parts: Vec<&str> = rgba.split(',').map(|s| s.trim()).collect();
+        if parts.len() == 4 {
+            let r = parts[0].parse::<u8>().ok()?;
+            let g = parts[1].parse::<u8>().ok()?;
+            let b = parts[2].parse::<u8>().ok()?;
+            let a_f = parts[3].parse::<f32>().ok()?;
+            let a = (a_f.clamp(0.0, 1.0) * 255.0).round() as u8;
+            return Some(Color::new(r, g, b, a));
+        }
+    }
+
     // Именованные цвета
     match color_str.to_lowercase().as_str() {
         "white" => Some(Color::WHITE),

@@ -27,6 +27,7 @@ struct ZverApp {
     show_html_source: bool,
     show_visual_layout_window: bool,
     show_clean_render_window: bool,
+    show_debug_overlays: bool,
 }
 
 impl Default for ZverApp {
@@ -46,6 +47,7 @@ impl Default for ZverApp {
             show_html_source: true,
             show_visual_layout_window: false,
             show_clean_render_window: false,
+            show_debug_overlays: false,
         }
     }
 }
@@ -177,6 +179,17 @@ impl eframe::App for ZverApp {
                 if ui.button("Open Clean Render Window").clicked() {
                     self.show_clean_render_window = true;
                 }
+
+                if ui
+                    .button(if self.show_debug_overlays {
+                        "Hide Debug Overlay"
+                    } else {
+                        "Show Debug Overlay"
+                    })
+                    .clicked()
+                {
+                    self.show_debug_overlays = !self.show_debug_overlays;
+                }
             });
 
             // HTML Source с прокруткой
@@ -225,11 +238,16 @@ impl ZverApp {
                 .with_inner_size([850.0, 700.0]),
             |ctx, _class| {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    runtime_clone.block_on(async {
-                        let layout = engine_clone.layout.read().await;
-                        let dom = engine_clone.dom.read().await;
+                    let show_overlays = self.show_debug_overlays;
+                    let engine = Arc::clone(&engine_clone);
+                    let runtime = Arc::clone(&runtime_clone);
 
-                        let render_info = layout.get_all_render_info(&dom);
+                    runtime.block_on(async move {
+                        let layout = engine.layout.read().await;
+                        let dom = engine.dom.read().await;
+                        let resolved_styles = layout.resolved_styles().clone();
+
+                        let render_info = layout.collect_render_info(&dom);
                         if !render_info.is_empty() {
                             ui.label(format!("Layout results: {} elements", render_info.len()));
 
@@ -265,7 +283,8 @@ impl ZverApp {
                                     &painter,
                                     response.rect.min,
                                     &render_info,
-                                    &dom,
+                                    &resolved_styles,
+                                    show_overlays,
                                 );
                             });
                         } else {
@@ -292,11 +311,15 @@ impl ZverApp {
                 .with_inner_size([1024.0, 768.0]),
             |ctx, _class| {
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    runtime_clone.block_on(async {
-                        let layout = engine_clone.layout.read().await;
-                        let dom = engine_clone.dom.read().await;
+                    let engine = Arc::clone(&engine_clone);
+                    let runtime = Arc::clone(&runtime_clone);
 
-                        let render_info = layout.get_all_render_info(&dom);
+                    runtime.block_on(async move {
+                        let layout = engine.layout.read().await;
+                        let dom = engine.dom.read().await;
+                        let resolved_styles = layout.resolved_styles().clone();
+
+                        let render_info = layout.collect_render_info(&dom);
                         if !render_info.is_empty() {
                             egui::ScrollArea::both().show(ui, |ui| {
                                 let (response, painter) = ui.allocate_painter(
@@ -310,7 +333,7 @@ impl ZverApp {
                                     &painter,
                                     response.rect.min,
                                     &render_info,
-                                    &dom,
+                                    &resolved_styles,
                                 );
                             });
                         } else {
