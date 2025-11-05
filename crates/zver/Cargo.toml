@@ -4,7 +4,7 @@ edition = "2024"
 version = "0.1.0"
 
 [dependencies]
-cssparser = "0.35"
+cssparser = { version = "0.35", features = ["serde"] }
 kuchikiki = "0.8"
 selectors = "0.32"
 precomputed-hash = "0.1"

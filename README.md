@@ -99,8 +99,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Получение layout
     let layout = engine.layout.read().await;
-    if let Some(tree) = &layout.layout_tree {
-        println!("Layout размер: {}x{}", tree.dimensions.width, tree.dimensions.height);
+    if let Some(&result) = layout.get_layout_result(document.root.unwrap()) {
+        println!("Layout размер: {}x{}", result.width, result.height);
     }
     
     Ok(())

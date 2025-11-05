@@ -1,3 +1,5 @@
+use cssparser::{Parser, ParserInput, Token};
+
 /// Представляет цвет в формате RGBA
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
@@ -66,54 +68,166 @@ impl Color {
     };
 }
 
-/// Парсит CSS цвет в структуру Color
+/// Парсит CSS цвет в структуру Color с использованием cssparser для компонентов
 pub fn parse_css_color(color_str: &str) -> Option<Color> {
     let color_str = color_str.trim();
 
     // Hex формат: #RRGGBB или #RGB
     if let Some(hex) = color_str.strip_prefix('#') {
-        if hex.len() == 6 {
-            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
-            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
-            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
-            return Some(Color::rgb(r, g, b));
-        } else if hex.len() == 3 {
-            let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?;
-            let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?;
-            let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?;
-            return Some(Color::rgb(r, g, b));
-        }
+        return parse_hex_color(hex);
     }
 
-    // rgb() формат: rgb(r, g, b)
-    if let Some(rgb) = color_str.strip_prefix("rgb(")
-        && let Some(rgb) = rgb.strip_suffix(')')
+    // rgb() и rgba() форматы с использованием cssparser для парсинга компонентов
+    if let Some(rgb_content) = color_str
+        .strip_prefix("rgb(")
+        .or_else(|| color_str.strip_prefix("rgba("))
+        && let Some(rgb_content) = rgb_content.strip_suffix(')')
     {
-        let parts: Vec<&str> = rgb.split(',').map(|s| s.trim()).collect();
-        if parts.len() == 3 {
-            let r = parts[0].parse::<u8>().ok()?;
-            let g = parts[1].parse::<u8>().ok()?;
-            let b = parts[2].parse::<u8>().ok()?;
-            return Some(Color::rgb(r, g, b));
-        }
+        return parse_rgb_color(rgb_content, color_str.starts_with("rgba("));
     }
 
-    // rgba() формат: rgba(r, g, b, a)
-    if let Some(rgba) = color_str.strip_prefix("rgba(")
-        && let Some(rgba) = rgba.strip_suffix(')')
+    // hsl() и hsla() форматы
+    if let Some(hsl_content) = color_str
+        .strip_prefix("hsl(")
+        .or_else(|| color_str.strip_prefix("hsla("))
+        && let Some(hsl_content) = hsl_content.strip_suffix(')')
     {
-        let parts: Vec<&str> = rgba.split(',').map(|s| s.trim()).collect();
-        if parts.len() == 4 {
-            let r = parts[0].parse::<u8>().ok()?;
-            let g = parts[1].parse::<u8>().ok()?;
-            let b = parts[2].parse::<u8>().ok()?;
-            let a_f = parts[3].parse::<f32>().ok()?;
-            let a = (a_f.clamp(0.0, 1.0) * 255.0).round() as u8;
-            return Some(Color::new(r, g, b, a));
-        }
+        return parse_hsl_color(hsl_content, color_str.starts_with("hsla("));
     }
 
     // Именованные цвета
+    parse_named_color(color_str)
+}
+
+fn parse_hex_color(hex: &str) -> Option<Color> {
+    match hex.len() {
+        6 => {
+            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            Some(Color::rgb(r, g, b))
+        }
+        3 => {
+            let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?;
+            let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?;
+            let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?;
+            Some(Color::rgb(r, g, b))
+        }
+        8 => {
+            let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+            let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+            let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+            let a = u8::from_str_radix(&hex[6..8], 16).ok()?;
+            Some(Color::new(r, g, b, a))
+        }
+        4 => {
+            let r = u8::from_str_radix(&hex[0..1].repeat(2), 16).ok()?;
+            let g = u8::from_str_radix(&hex[1..2].repeat(2), 16).ok()?;
+            let b = u8::from_str_radix(&hex[2..3].repeat(2), 16).ok()?;
+            let a = u8::from_str_radix(&hex[3..4].repeat(2), 16).ok()?;
+            Some(Color::new(r, g, b, a))
+        }
+        _ => None,
+    }
+}
+
+fn parse_rgb_color(content: &str, has_alpha: bool) -> Option<Color> {
+    let mut input = ParserInput::new(content);
+    let mut parser = Parser::new(&mut input);
+
+    // Парсим компоненты через запятую
+    let components = parser
+        .parse_comma_separated(|p| parse_color_component(p))
+        .ok()?;
+
+    if has_alpha && components.len() == 4 {
+        let r = components[0] as u8;
+        let g = components[1] as u8;
+        let b = components[2] as u8;
+        let a = (components[3] * 255.0).round() as u8;
+        Some(Color::new(r, g, b, a))
+    } else if !has_alpha && components.len() == 3 {
+        let r = components[0] as u8;
+        let g = components[1] as u8;
+        let b = components[2] as u8;
+        Some(Color::rgb(r, g, b))
+    } else {
+        None
+    }
+}
+
+fn parse_hsl_color(content: &str, has_alpha: bool) -> Option<Color> {
+    let mut input = ParserInput::new(content);
+    let mut parser = Parser::new(&mut input);
+
+    // Парсим компоненты HSL
+    let components = parser
+        .parse_comma_separated(|p| parse_color_component(p))
+        .ok()?;
+
+    if components.len() >= 3 {
+        let h = components[0];
+        let s = components[1] / 100.0; // Процент в дробь
+        let l = components[2] / 100.0; // Процент в дробь
+
+        // Конвертируем HSL в RGB
+        let (r, g, b) = hsl_to_rgb(h, s, l);
+
+        if has_alpha && components.len() == 4 {
+            let a = (components[3] * 255.0).round() as u8;
+            Some(Color::new(r, g, b, a))
+        } else {
+            Some(Color::rgb(r, g, b))
+        }
+    } else {
+        None
+    }
+}
+
+fn parse_color_component<'i>(
+    parser: &mut Parser<'i, '_>,
+) -> Result<f32, cssparser::ParseError<'i, ()>> {
+    match parser.next()?.clone() {
+        Token::Number { value, .. } => Ok(value),
+        Token::Percentage { unit_value, .. } => Ok(unit_value * 255.0), // Процент в 0-255 для RGB
+        Token::Dimension { value, unit, .. } => {
+            if unit.as_ref().eq_ignore_ascii_case("deg") {
+                Ok(value) // Градусы для HSL hue
+            } else {
+                Err(parser.new_custom_error(()))
+            }
+        }
+        _ => Err(parser.new_custom_error(())),
+    }
+}
+
+fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
+    let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
+    let m = l - c / 2.0;
+
+    let (r_prime, g_prime, b_prime) = if (0.0..60.0).contains(&h) {
+        (c, x, 0.0)
+    } else if (60.0..120.0).contains(&h) {
+        (x, c, 0.0)
+    } else if (120.0..180.0).contains(&h) {
+        (0.0, c, x)
+    } else if (180.0..240.0).contains(&h) {
+        (0.0, x, c)
+    } else if (240.0..300.0).contains(&h) {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+
+    let r = ((r_prime + m) * 255.0).round() as u8;
+    let g = ((g_prime + m) * 255.0).round() as u8;
+    let b = ((b_prime + m) * 255.0).round() as u8;
+
+    (r, g, b)
+}
+
+fn parse_named_color(color_str: &str) -> Option<Color> {
     match color_str.to_lowercase().as_str() {
         "white" => Some(Color::WHITE),
         "black" => Some(Color::BLACK),
@@ -122,6 +236,17 @@ pub fn parse_css_color(color_str: &str) -> Option<Color> {
         "blue" => Some(Color::BLUE),
         "yellow" => Some(Color::YELLOW),
         "gray" | "grey" => Some(Color::GRAY),
+        "transparent" => Some(Color::TRANSPARENT),
+        // Дополнительные веб-цвета
+        "silver" => Some(Color::rgb(192, 192, 192)),
+        "maroon" => Some(Color::rgb(128, 0, 0)),
+        "purple" => Some(Color::rgb(128, 0, 128)),
+        "fuchsia" => Some(Color::rgb(255, 0, 255)),
+        "lime" => Some(Color::rgb(0, 255, 0)),
+        "olive" => Some(Color::rgb(128, 128, 0)),
+        "navy" => Some(Color::rgb(0, 0, 128)),
+        "teal" => Some(Color::rgb(0, 128, 128)),
+        "aqua" => Some(Color::rgb(0, 255, 255)),
         _ => None,
     }
 }

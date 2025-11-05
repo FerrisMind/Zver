@@ -7,7 +7,7 @@ pub use render::*;
 pub use types::*;
 
 use crate::dom::Document;
-use crate::layout::styles::{apply_css_styles, apply_default_tag_styles};
+use crate::layout::styles::apply_default_tag_styles;
 use std::collections::HashMap;
 use taffy::prelude::*;
 
@@ -101,17 +101,12 @@ pub struct LayoutEngine {
     node_mapping: HashMap<usize, NodeId>, // DOM ID -> Taffy NodeId
     layout_cache: HashMap<usize, LayoutResult>, // Результаты layout по DOM ID
     resolved_styles: HashMap<usize, types::ComputedStyle>,
-
-    // Deprecated - для обратной совместимости
-    #[deprecated(since = "0.2.0", note = "Use layout_cache instead")]
-    pub layout_tree: Option<LayoutNode>,
 }
 
 unsafe impl Send for LayoutEngine {}
 unsafe impl Sync for LayoutEngine {}
 
 impl LayoutEngine {
-    #[allow(deprecated)]
     pub fn new(viewport_width: f32, viewport_height: f32) -> Self {
         Self {
             viewport_width,
@@ -121,29 +116,10 @@ impl LayoutEngine {
             node_mapping: HashMap::new(),
             layout_cache: HashMap::new(),
             resolved_styles: HashMap::new(),
-            layout_tree: None,
         }
     }
 
-    #[deprecated(since = "0.2.0", note = "Use compute_layout() instead")]
-    #[allow(deprecated)]
-    pub fn compute(
-        &mut self,
-        _document: &Document,
-        _styles: &HashMap<usize, HashMap<String, String>>,
-    ) -> Option<&LayoutNode> {
-        // Временная заглушка - будет удалена в Фазе 3
-        // Пока сохраняем старое поведение для совместимости
-        self.layout_tree.as_ref()
-    }
-
-    #[allow(deprecated)]
-    pub fn layout_tree(&self) -> Option<&LayoutNode> {
-        self.layout_tree.as_ref()
-    }
-
     /// Сбрасывает состояние при изменении DOM/CSS
-    #[allow(deprecated)]
     pub fn invalidate(&mut self) {
         if let Some(root) = self.root_node.take() {
             let _ = self.taffy.remove(root);
@@ -152,7 +128,6 @@ impl LayoutEngine {
         self.node_mapping.clear();
         self.layout_cache.clear();
         self.resolved_styles.clear();
-        self.layout_tree = None;
     }
 
     /// Вычисляет layout с использованием Taffy (новый API)
@@ -175,10 +150,7 @@ impl LayoutEngine {
         // 3. Извлекаем и кешируем результаты
         self.extract_and_cache_results(document);
 
-        // 4. Для совместимости обновляем устаревшую структуру
-        self.update_legacy_layout_tree(document, styles);
-
-        // 5. Возвращаем результаты
+        // 4. Возвращаем результаты
         self.layout_cache.clone()
     }
 
@@ -197,60 +169,7 @@ impl LayoutEngine {
         &self.resolved_styles
     }
 
-    /// Обновляет устаревшую структуру LayoutNode для совместимости
-    #[allow(deprecated)]
-    fn update_legacy_layout_tree(
-        &mut self,
-        document: &Document,
-        styles: &HashMap<usize, HashMap<String, String>>,
-    ) {
-        // Создаем LayoutNode из результатов Taffy для обратной совместимости
-        if let Some(root_id) = document.root {
-            self.layout_tree = self.build_legacy_layout_node(document, styles, root_id);
-        }
-    }
-
-    /// Рекурсивно строит LayoutNode из результатов Taffy
-    fn build_legacy_layout_node(
-        &self,
-        document: &Document,
-        styles: &HashMap<usize, HashMap<String, String>>,
-        node_id: usize,
-    ) -> Option<LayoutNode> {
-        let layout_result = self.layout_cache.get(&node_id)?;
-        let computed_style = self
-            .resolved_styles
-            .get(&node_id)
-            .cloned()
-            .unwrap_or_else(|| {
-                let node_styles = styles.get(&node_id).cloned().unwrap_or_default();
-                ComputedStyle::from_css_properties(&node_styles)
-            });
-
-        let mut children = Vec::new();
-        if let Some(dom_node) = document.nodes.get(&node_id) {
-            for &child_id in &dom_node.children {
-                if let Some(child) = self.build_legacy_layout_node(document, styles, child_id) {
-                    children.push(child);
-                }
-            }
-        }
-
-        Some(LayoutNode {
-            style: computed_style,
-            dimensions: Dimensions {
-                x: layout_result.x,
-                y: layout_result.y,
-                width: layout_result.width,
-                height: layout_result.height,
-            },
-            children,
-            dom_node: node_id,
-        })
-    }
-
     /// Строит Taffy дерево с контекстами для текстовых узлов
-    #[allow(deprecated)]
     fn build_taffy_tree_with_contexts(
         &mut self,
         document: &Document,
@@ -264,7 +183,6 @@ impl LayoutEngine {
         self.node_mapping.clear();
         self.layout_cache.clear();
         self.resolved_styles.clear();
-        self.layout_tree = None;
 
         let root_id = document.root?;
         let taffy_root = self.build_node_recursive(document, root_id, styles, None)?;
@@ -283,14 +201,13 @@ impl LayoutEngine {
         // Получаем стили для узла
         let node_styles = styles.get(&dom_node_id).cloned().unwrap_or_default();
 
-        let mut computed_style = ComputedStyle::default();
+        let mut computed_style = ComputedStyle::from_css_properties(&node_styles);
 
         if let Some(node) = document.nodes.get(&dom_node_id) {
             apply_default_tag_styles(&mut computed_style, &node.tag_name);
         }
 
         inherit_computed_style(&mut computed_style, parent_style);
-        apply_css_styles(&mut computed_style, &node_styles);
 
         // Для корневого элемента принудительно устанавливаем размеры viewport
         if document.root == Some(dom_node_id) {
