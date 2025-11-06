@@ -112,97 +112,63 @@ impl Default for Zver {
 }
 
 fn find_style_nodes(dom: &dom::Document, node_id: Option<usize>) -> Vec<usize> {
-    let mut style_nodes = Vec::new();
-    find_style_nodes_recursive(dom, node_id, &mut style_nodes);
-    style_nodes
-}
-
-fn find_style_nodes_recursive(
-    dom: &dom::Document,
-    node_id: Option<usize>,
-    style_nodes: &mut Vec<usize>,
-) {
-    if let Some(node_id) = node_id
-        && let Some(node) = dom.nodes.get(&node_id)
-    {
-        // Если это <style> тег, добавляем в список
-        if node.tag_name.as_deref() == Some("style") {
-            style_nodes.push(node_id);
+    match node_id {
+        Some(id) => {
+            let mut nodes = Vec::new();
+            if dom.nodes.get(&id).and_then(|node| node.tag_name.as_deref()) == Some("style") {
+                nodes.push(id);
+            }
+            nodes.extend(dom.select_ids_from(id, "style"));
+            nodes
         }
-
-        // Рекурсивно обрабатываем дочерние узлы
-        for &child_id in &node.children {
-            find_style_nodes_recursive(dom, Some(child_id), style_nodes);
-        }
+        None => dom.select_ids("style"),
     }
 }
 
 fn extract_css_from_single_node(dom: &dom::Document, node_id: usize, css_content: &mut String) {
-    if let Some(node) = dom.nodes.get(&node_id) {
-        // Ищем текстовые дочерние узлы
-        for &child_id in &node.children {
-            if let Some(child) = dom.nodes.get(&child_id)
-                && let Some(text) = &child.text_content
-            {
-                css_content.push_str(text);
-                css_content.push('\n');
-            }
+    let content = dom.get_text_content(node_id);
+    if !content.is_empty() {
+        css_content.push_str(&content);
+        if !content.ends_with('\n') {
+            css_content.push('\n');
         }
     }
 }
 
 #[allow(dead_code)]
 fn extract_css_from_dom(dom: &dom::Document, node_id: Option<usize>, css_content: &mut String) {
-    if let Some(node_id) = node_id
-        && let Some(node) = dom.nodes.get(&node_id)
-    {
-        // Если это <style> тег, извлекаем его содержимое
-        if node.tag_name.as_deref() == Some("style") {
-            // Ищем текстовые дочерние узлы
-            for &child_id in &node.children {
-                if let Some(child) = dom.nodes.get(&child_id)
-                    && let Some(text) = &child.text_content
-                {
-                    css_content.push_str(text);
-                    css_content.push('\n');
-                }
-            }
-        }
-
-        // Рекурсивно обрабатываем дочерние узлы
-        for &child_id in &node.children {
-            extract_css_from_dom(dom, Some(child_id), css_content);
-        }
+    for style_id in find_style_nodes(dom, node_id) {
+        extract_css_from_single_node(dom, style_id, css_content);
     }
 }
 
 fn extract_js_from_dom(dom: &dom::Document, node_id: Option<usize>, js_content: &mut String) {
-    if let Some(node_id) = node_id
-        && let Some(node) = dom.nodes.get(&node_id)
-    {
-        // Если это <script> тег, извлекаем его содержимое
-        if node.tag_name.as_deref() == Some("script") {
-            // Ищем текстовые дочерние узлы или src атрибут
-            if let Some(src) = node.attributes.get("src") {
-                // Для демонстрации просто добавляем комментарий
-                // В реальности нужно было бы загрузить внешний скрипт
-                js_content.push_str(&format!("// External script: {}\n", src));
-            } else {
-                // Ищем текстовые дочерние узлы
-                for &child_id in &node.children {
-                    if let Some(child) = dom.nodes.get(&child_id)
-                        && let Some(text) = &child.text_content
-                    {
-                        js_content.push_str(text);
-                        js_content.push('\n');
-                    }
+    let mut script_nodes = match node_id {
+        Some(id) => {
+            let mut nodes = Vec::new();
+            if dom.nodes.get(&id).and_then(|node| node.tag_name.as_deref()) == Some("script") {
+                nodes.push(id);
+            }
+            nodes.extend(dom.select_ids_from(id, "script"));
+            nodes
+        }
+        None => dom.select_ids("script"),
+    };
+
+    script_nodes.sort_unstable();
+    script_nodes.dedup();
+
+    for script_id in script_nodes {
+        if let Some(src) = dom.attribute(script_id, "src") {
+            js_content.push_str(&format!("// External script: {src}\n"));
+        } else {
+            let content = dom.get_text_content(script_id);
+            if !content.is_empty() {
+                js_content.push_str(&content);
+                if !content.ends_with('\n') {
+                    js_content.push('\n');
                 }
             }
-        }
-
-        // Рекурсивно обрабатываем дочерние узлы
-        for &child_id in &node.children {
-            extract_js_from_dom(dom, Some(child_id), js_content);
         }
     }
 }

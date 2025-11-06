@@ -12,7 +12,6 @@ tokio = { version = "1.48", features = ["full"] }
 wgpu = "27.0"
 winit = "0.30"
 reqwest = { version = "0.12", features = ["rustls-tls", "json", "stream"] }
-scraper = "0.24"
 taffy = "0.9"
 boa_engine = "0.21"
 thiserror = "2.0"

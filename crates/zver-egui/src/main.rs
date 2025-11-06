@@ -69,10 +69,9 @@ impl ZverApp {
 
             // Статистика DOM
             let dom_stats = format!(
-                "DOM узлов: {}, Корень: {:?}, Scraper: {}",
+                "DOM узлов: {}, Корень: {:?}, Selectors: kuchikiki",
                 dom.nodes.len(),
                 dom.root,
-                dom.has_scraper()
             );
 
             // Статистика Layout
