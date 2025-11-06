@@ -6372,13 +6372,11 @@ dependencies = [
 name = "zver"
 version = "0.1.0"
 dependencies = [
- "ab_glyph",
  "boa_engine",
  "bytemuck",
  "cssparser 0.35.0",
  "futures-util",
  "kuchikiki",
- "once_cell",
  "precomputed-hash",
  "rayon",
  "reqwest",

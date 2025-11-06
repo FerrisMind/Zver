@@ -185,7 +185,7 @@ impl LayoutEngine {
         self.resolved_styles.clear();
 
         let root_id = document.root?;
-        let taffy_root = self.build_node_recursive(document, root_id, styles, None)?;
+        let (taffy_root, _) = self.build_node_recursive(document, root_id, styles, None)?;
         self.root_node = Some(taffy_root);
         Some(taffy_root)
     }
@@ -197,7 +197,7 @@ impl LayoutEngine {
         dom_node_id: usize,
         styles: &HashMap<usize, HashMap<String, String>>,
         parent_style: Option<&ComputedStyle>,
-    ) -> Option<NodeId> {
+    ) -> Option<(NodeId, crate::layout::types::Display)> {
         // Получаем стили для узла
         let node_styles = styles.get(&dom_node_id).cloned().unwrap_or_default();
 
@@ -208,6 +208,17 @@ impl LayoutEngine {
         }
 
         inherit_computed_style(&mut computed_style, parent_style);
+
+        // Текстовые узлы рассматриваем как inline по умолчанию
+        if document
+            .nodes
+            .get(&dom_node_id)
+            .is_some_and(|node| node.tag_name.is_none())
+        {
+            computed_style.display = crate::layout::types::Display::Inline;
+        }
+
+        let node_display = computed_style.display;
 
         // Для корневого элемента принудительно устанавливаем размеры viewport
         if document.root == Some(dom_node_id) {
@@ -266,14 +277,33 @@ impl LayoutEngine {
 
         // Рекурсивно создаем детей
         let mut taffy_children = Vec::new();
+        let mut inline_group: Vec<NodeId> = Vec::new();
         if let Some(dom_node) = document.nodes.get(&dom_node_id) {
             for &child_dom_id in &dom_node.children {
-                if let Some(child_taffy_id) =
+                if let Some((child_taffy_id, child_display)) =
                     self.build_node_recursive(document, child_dom_id, styles, Some(&computed_style))
                 {
-                    taffy_children.push(child_taffy_id);
+                    if matches!(child_display, crate::layout::types::Display::Inline) {
+                        inline_group.push(child_taffy_id);
+                    } else {
+                        if !inline_group.is_empty() {
+                            if let Some(container_id) = self.create_inline_container(&inline_group)
+                            {
+                                taffy_children.push(container_id);
+                            }
+                            inline_group.clear();
+                        }
+                        taffy_children.push(child_taffy_id);
+                    }
                 }
             }
+        }
+
+        if !inline_group.is_empty() {
+            if let Some(container_id) = self.create_inline_container(&inline_group) {
+                taffy_children.push(container_id);
+            }
+            inline_group.clear();
         }
 
         // Создаем Taffy узел
@@ -295,7 +325,25 @@ impl LayoutEngine {
         // Сохраняем mapping
         self.node_mapping.insert(dom_node_id, taffy_node_id);
 
-        Some(taffy_node_id)
+        Some((taffy_node_id, node_display))
+    }
+
+    fn create_inline_container(&mut self, children: &[NodeId]) -> Option<NodeId> {
+        if children.is_empty() {
+            return None;
+        }
+
+        use taffy::style::{AlignItems, Display as TaffyDisplay, FlexDirection, FlexWrap};
+
+        let style = taffy::Style {
+            display: TaffyDisplay::Flex,
+            flex_direction: FlexDirection::Row,
+            flex_wrap: FlexWrap::Wrap,
+            align_items: Some(AlignItems::FlexStart),
+            ..Default::default()
+        };
+
+        self.taffy.new_with_children(style, children).ok()
     }
 
     /// Вычисляет layout с измерением текста
