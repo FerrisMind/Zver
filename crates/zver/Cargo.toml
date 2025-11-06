@@ -4,21 +4,40 @@ edition = "2024"
 version = "0.1.0"
 
 [dependencies]
+# CSS and selector parsing (Phase 1: verified latest versions)
 cssparser = { version = "0.35", features = ["serde"] }
-kuchikiki = "0.8"
 selectors = "0.32"
+
+# DOM parsing
+kuchikiki = "0.8"
 precomputed-hash = "0.1"
+
+# Layout engine with full Flexbox and Grid support (Phase 1: updated to crates.io)
+taffy = { version = "0.9.1", features = ["grid", "flexbox", "block_layout"] }
+
+# Font rendering (Phase 1: added for @font-face support)
+fontdue = "0.9.3"
+
+# Bitflags for element state (Phase 1: verified latest version)
+bitflags = "2.10"
+
+# Async runtime and networking
 tokio = { version = "1.48", features = ["full"] }
+reqwest = { version = "0.12", features = ["rustls-tls", "json", "stream"] }
+futures-util = "0.3"
+
+# JavaScript engine
+boa_engine = "0.21"
+
+# GPU rendering
 wgpu = "27.0"
 winit = "0.30"
-reqwest = { version = "0.12", features = ["rustls-tls", "json", "stream"] }
-taffy = "0.9"
-boa_engine = "0.21"
-thiserror = "2.0"
-rayon = "1.11"
-futures-util = "0.3"
 wgpu_text = "27.0"
 bytemuck = { version = "1.24", features = ["derive"] }
+
+# Utilities
+thiserror = "2.0"
+rayon = "1.11"
 
 [[example]]
 name = "basic_usage"

@@ -78,22 +78,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Элементных узлов: {}", element_nodes);
 
             // Демонстрация получения конкретного результата layout
-            if let Some(root_id) = dom.root {
-                if let Some(root_result) = layout.get_layout_result(root_id) {
-                    println!("\n🌳 Корневой элемент:");
-                    println!(
-                        "  Размер: {:.0}x{:.0}",
-                        root_result.width, root_result.height
-                    );
-                    println!("  Позиция: ({:.0},{:.0})", root_result.x, root_result.y);
-                    println!(
-                        "  Контентная область: {:.0}x{:.0} at ({:.0},{:.0})",
-                        root_result.content_width,
-                        root_result.content_height,
-                        root_result.content_x,
-                        root_result.content_y
-                    );
-                }
+            if let Some(root_id) = dom.root
+                && let Some(root_result) = layout.get_layout_result(root_id)
+            {
+                println!("\n🌳 Корневой элемент:");
+                println!(
+                    "  Размер: {:.0}x{:.0}",
+                    root_result.width, root_result.height
+                );
+                println!("  Позиция: ({:.0},{:.0})", root_result.x, root_result.y);
+                println!(
+                    "  Контентная область: {:.0}x{:.0} at ({:.0},{:.0})",
+                    root_result.content_width,
+                    root_result.content_height,
+                    root_result.content_x,
+                    root_result.content_y
+                );
             }
 
             // Получение информации о CSS
