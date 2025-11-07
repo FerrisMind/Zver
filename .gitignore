@@ -57,3 +57,6 @@ build/
 # Temporary
 tmp/
 temp/
+
+# Backup files
+*.bak
