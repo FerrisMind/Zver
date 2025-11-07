@@ -65,10 +65,12 @@ impl eframe::App for ZverBrowser {
             }
         });
 
-        // Bottom panel: DevTools (if open)
+        // Right panel: DevTools (if open)
         if self.address_bar.devtools_open {
-            egui::TopBottomPanel::bottom("devtools_panel")
-                .min_height(300.0)
+            egui::SidePanel::right("devtools_panel")
+                .min_width(300.0)
+                .default_width(380.0)
+                .resizable(true)
                 .show(ctx, |ui| {
                     let engine = self.tab_manager.get_active_tab().map(|t| &t.engine);
                     self.devtools.render(ui, engine, Some(&self.runtime));
