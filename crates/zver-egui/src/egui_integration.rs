@@ -11,6 +11,7 @@ pub fn color_to_egui(color: Color) -> egui::Color32 {
 }
 
 /// Визуальный рендеринг layout результатов в egui с использованием painter
+#[allow(dead_code)]
 pub fn render_layout_results_in_painter(
     painter: &egui::Painter,
     offset: egui::Pos2,

@@ -172,13 +172,22 @@ impl Zver {
             let _span = tracing::debug_span!("execute_js").entered();
             let dom_snapshot = self.dom.read().await.clone();
             let mut js_engine = self.js.write().await;
+            
+            // Reset JavaScript context to prevent "duplicate lexical declaration" errors
+            // This is necessary because const/let declarations cannot be redeclared in the same scope
+            js_engine.reset_context();
+            
             let mut js_content = String::new();
             extract_js_from_dom(&dom_snapshot, dom_snapshot.root, &mut js_content);
 
-            if !js_content.is_empty()
-                && let Err(e) = js_engine.execute(&js_content)
-            {
-                eprintln!("JavaScript execution error: {}", e);
+            if !js_content.is_empty() {
+                tracing::debug!("Executing JavaScript code ({} chars): {}", 
+                              js_content.len(), 
+                              &js_content[..js_content.len().min(100)]);
+                              
+                if let Err(e) = js_engine.execute(&js_content) {
+                    eprintln!("JavaScript execution error: {}", e);
+                }
             }
         }
 

@@ -727,6 +727,41 @@ impl JSEngine {
         executed
     }
 
+    /// Resets the JavaScript context for a new page load
+    /// This prevents "duplicate lexical declaration" errors when const/let variables are redeclared
+    pub fn reset_context(&mut self) {
+        tracing::debug!("Resetting JavaScript context");
+        
+        // Create a new context to avoid conflicts with previous declarations
+        self.context = Context::default();
+        
+        // Re-initialize global objects
+        Self::init_console(&mut self.context);
+        
+        // Re-initialize timers and document APIs
+        self.init_timers();
+        if self.dom_ref.is_some() {
+            self.init_document();
+        }
+        
+        // Clear timers and callbacks from previous page
+        if let Ok(mut timers) = self.timers.lock() {
+            for (timer_id, handle) in timers.drain() {
+                tracing::debug!("Aborting timer {}", timer_id);
+                handle.abort();
+            }
+        }
+        
+        if let Ok(mut callbacks) = self.pending_callbacks.lock() {
+            let count = callbacks.len();
+            callbacks.clear();
+            tracing::debug!("Cleared {} pending callbacks", count);
+        }
+        
+        // Reset event registry
+        self.event_registry = EventRegistry::new();
+    }
+
     pub fn execute(&mut self, code: &str) -> Result<JSValue, Box<dyn std::error::Error>> {
         use boa_engine::Source;
 
