@@ -14,6 +14,31 @@
 - WebAssembly интеграция
 - Мобильная оптимизация
 
+## [0.6.0-alpha.1] - 2025-11-07
+
+### Добавлено
+- Полноценный браузерный интерфейс с мультивкладками в `zver-egui` (`feat(browser): Implement comprehensive browser interface with multi-tab support`).
+- Расширенная панель DevTools в `zver-egui` с вкладками (Elements/Console/Network/Performance) и докингом справа (`feat(zver-egui): Enhance DevTools panel layout and positioning`).
+- Улучшенный рендеринг layout и debug-визуализации в демо-приложении (`feat(zver-egui): Enhance layout rendering and debug visualization`, `feat(zver-egui): Enhance UI rendering and layout visualization`).
+- Поддержка улучшенного inline layout и рендеринга (`feat(layout): Enhance inline element handling and layout rendering`).
+- Улучшенный парсинг цветов и поддержка нескольких форматов (`feat(css): Enhance color parsing and support for multiple color formats`).
+- Интеграция Boa JavaScript engine и обновление зависимостей (`feat(project): Integrate Boa JavaScript engine and enhance project dependencies`).
+
+### Изменено
+- Улучшен DOM-парсинг и операции (`refactor(dom): Enhance DOM parsing and querying capabilities`).
+- Реструктурирован CSS-модуль и улучшен парсинг (`refactor(css): Restructure CSS module and enhance parsing capabilities`).
+- Улучшен загрузчик ресурсов (`refactor(resource_loader): Improve resource loading initialization and error handling`).
+- Рефакторинг структуры проекта и зависимостей (`refactor(project): Restructure project modules and update dependencies`).
+- Консолидация оптимизаций DOM/CSS/layout (коммит `42f6eca`).
+
+### Удалено
+- Временные экспериментальные файлы и резервные копии тестов, не являющиеся частью публичного API
+  (`chore: clean repository structure and gitignore`).
+
+### Исправлено
+- Очистка репозитория и `.gitignore` от артефактов сборки и временных файлов
+  (`chore: clean repository structure and gitignore`).
+
 ## [0.1.0] - 2024-11-06
 
 ### Добавлено
@@ -162,5 +187,6 @@
 
 ## Ссылки
 
-- [Unreleased]: https://github.com/your-username/zver/compare/v0.1.0...HEAD
-- [0.1.0]: https://github.com/your-username/zver/releases/tag/v0.1.0
+- [Unreleased]: https://github.com/FerrisMind/Zver/compare/v0.6.0-alpha.1...HEAD
+- [0.6.0-alpha.1]: https://github.com/FerrisMind/Zver/releases/tag/v0.6.0-alpha.1
+- [0.1.0]: https://github.com/FerrisMind/Zver/releases/tag/v0.1.0
