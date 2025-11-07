@@ -6,10 +6,12 @@ version = "0.1.0"
 [dependencies]
 # CSS and selector parsing (Phase 1: verified latest versions)
 cssparser = { version = "0.35", features = ["serde"] }
-selectors = "0.32"
+selectors = "0.31"
 
 # DOM parsing
-kuchikiki = "0.8"
+scraper = "0.24"
+ego-tree = "0.10"
+html5ever = "0.29"
 precomputed-hash = "0.1"
 
 # Layout engine with full Flexbox and Grid support (Phase 1: updated to crates.io)
@@ -38,6 +40,9 @@ bytemuck = { version = "1.24", features = ["derive"] }
 # Utilities
 thiserror = "2.0"
 rayon = "1.11"
+
+# Performance monitoring (Phase 2: added for profiling)
+tracing = "0.1"
 
 [[example]]
 name = "basic_usage"

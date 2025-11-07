@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 3: Тест псевдоэлементов</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* ::before */
+        .before-test::before {
+            content: "→ ";
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        .before-test-icon::before {
+            content: "🔵 ";
+        }
+
+        /* ::after */
+        .after-test::after {
+            content: " ←";
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .after-test-icon::after {
+            content: " ✅";
+        }
+
+        /* ::before и ::after вместе */
+        .both-test::before {
+            content: "[";
+            color: #2ecc71;
+            font-weight: bold;
+        }
+
+        .both-test::after {
+            content: "]";
+            color: #2ecc71;
+            font-weight: bold;
+        }
+
+        /* ::before с background */
+        .before-bg::before {
+            content: "";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-color: #3498db;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        /* ::after с background */
+        .after-bg::after {
+            content: "";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-color: #e74c3c;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        /* ::first-letter */
+        .first-letter-test::first-letter {
+            font-size: 3em;
+            color: #3498db;
+            font-weight: bold;
+            float: left;
+            line-height: 1;
+            margin-right: 5px;
+        }
+
+        /* ::first-line */
+        .first-line-test::first-line {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+
+        .text-block {
+            line-height: 1.6;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Фаза 3: Тестирование псевдоэлементов</h1>
+
+        <div class="info">
+            <strong>Примечание:</strong> Псевдоэлементы ::before и ::after создают виртуальные узлы в DOM.
+            Псевдоэлементы ::first-letter и ::first-line требуют layout-контекста.
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 1: ::before (текст)</h2>
+            <div class="code">.before-test::before { content: "→ "; color: #3498db; }</div>
+            <p class="before-test">Этот текст должен начинаться со стрелки</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: ::before (эмодзи)</h2>
+            <div class="code">.before-test-icon::before { content: "🔵 "; }</div>
+            <p class="before-test-icon">Этот текст должен начинаться с эмодзи</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: ::after (текст)</h2>
+            <div class="code">.after-test::after { content: " ←"; color: #e74c3c; }</div>
+            <p class="after-test">Этот текст должен заканчиваться стрелкой</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: ::after (эмодзи)</h2>
+            <div class="code">.after-test-icon::after { content: " ✅"; }</div>
+            <p class="after-test-icon">Этот текст должен заканчиваться галочкой</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: ::before и ::after вместе</h2>
+            <div class="code">.both-test::before { content: "["; } .both-test::after { content: "]"; }</div>
+            <p class="both-test">Этот текст должен быть в квадратных скобках</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 6: ::before с background</h2>
+            <div class="code">.before-bg::before { content: ""; display: inline-block; width: 20px; height: 20px; background-color: #3498db; }</div>
+            <p class="before-bg">Этот текст должен иметь синий квадрат перед собой</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 7: ::after с background</h2>
+            <div class="code">.after-bg::after { content: ""; display: inline-block; width: 20px; height: 20px; background-color: #e74c3c; }</div>
+            <p class="after-bg">Этот текст должен иметь красный квадрат после себя</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 8: ::first-letter</h2>
+            <div class="code">.first-letter-test::first-letter { font-size: 3em; color: #3498db; float: left; }</div>
+            <p class="first-letter-test text-block">
+                Первая буква этого параграфа должна быть большой и синей. Остальной текст должен обтекать её.
+                Это классический стиль drop cap, который часто используется в типографике для выделения начала статьи или раздела.
+            </p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 9: ::first-line</h2>
+            <div class="code">.first-line-test::first-line { color: #e74c3c; font-weight: bold; font-size: 1.2em; }</div>
+            <p class="first-line-test text-block">
+                Первая строка этого параграфа должна быть красной, жирной и больше по размеру. Остальные строки должны иметь обычное форматирование.
+                Это полезно для выделения начала текста и создания визуального акцента на важной информации.
+                Псевдоэлемент ::first-line автоматически адаптируется к ширине контейнера и переносу строк.
+            </p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 10: Комбинация ::before и ::first-letter</h2>
+            <div class="code">
+                .combo-test::before { content: "📌 "; }<br>
+                .combo-test::first-letter { font-size: 2em; color: #2ecc71; }
+            </div>
+            <p class="combo-test before-test-icon text-block">
+                Этот параграф имеет и ::before (эмодзи), и ::first-letter (большая буква). Оба псевдоэлемента должны работать одновременно.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

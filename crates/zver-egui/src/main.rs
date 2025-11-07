@@ -69,7 +69,7 @@ impl ZverApp {
 
             // Статистика DOM
             let dom_stats = format!(
-                "DOM узлов: {}, Корень: {:?}, Selectors: kuchikiki",
+                "DOM узлов: {}, Корень: {:?}, Selectors: scraper",
                 dom.nodes.len(),
                 dom.root,
             );
@@ -151,10 +151,39 @@ impl eframe::App for ZverApp {
             });
 
             ui.separator();
-            ui.label(&self.status);
-            ui.label(&self.dom_stats);
-            ui.label(&self.layout_stats);
-            ui.label(&self.js_stats);
+            
+            // Статус и логи с возможностью копирования
+            ui.horizontal(|ui| {
+                ui.label("Status:");
+                ui.add(
+                    TextEdit::singleline(&mut self.status.as_str())
+                        .desired_width(f32::INFINITY)
+                );
+            });
+            
+            ui.horizontal(|ui| {
+                ui.label("DOM:");
+                ui.add(
+                    TextEdit::singleline(&mut self.dom_stats.as_str())
+                        .desired_width(f32::INFINITY)
+                );
+            });
+            
+            ui.horizontal(|ui| {
+                ui.label("Layout:");
+                ui.add(
+                    TextEdit::singleline(&mut self.layout_stats.as_str())
+                        .desired_width(f32::INFINITY)
+                );
+            });
+            
+            ui.horizontal(|ui| {
+                ui.label("JS:");
+                ui.add(
+                    TextEdit::singleline(&mut self.js_stats.as_str())
+                        .desired_width(f32::INFINITY)
+                );
+            });
 
             ui.separator();
 
@@ -269,23 +298,36 @@ impl ZverApp {
 
                             ui.separator();
 
-                            egui::ScrollArea::both().show(ui, |ui| {
-                                let canvas_width = 1200.0;
-                                let canvas_height = 1000.0;
+                            // Calculate actual content dimensions
+                            let mut max_x = 0.0f32;
+                            let mut max_y = 0.0f32;
+                            for info in &render_info {
+                                let right = info.layout.x + info.layout.width;
+                                let bottom = info.layout.y + info.layout.height;
+                                max_x = max_x.max(right);
+                                max_y = max_y.max(bottom);
+                            }
+                            
+                            // Add padding
+                            let canvas_width = (max_x + 20.0).max(800.0);
+                            let canvas_height = (max_y + 20.0).max(600.0);
 
-                                let (response, painter) = ui.allocate_painter(
-                                    egui::vec2(canvas_width, canvas_height),
-                                    egui::Sense::hover(),
-                                );
+                            egui::ScrollArea::both()
+                                .auto_shrink(false)
+                                .show(ui, |ui| {
+                                    let (response, painter) = ui.allocate_painter(
+                                        egui::vec2(canvas_width, canvas_height),
+                                        egui::Sense::hover(),
+                                    );
 
-                                render_layout_results_in_painter(
-                                    &painter,
-                                    response.rect.min,
-                                    &render_info,
-                                    &resolved_styles,
-                                    show_overlays,
-                                );
-                            });
+                                    render_layout_results_in_painter(
+                                        &painter,
+                                        response.rect.min,
+                                        &render_info,
+                                        &resolved_styles,
+                                        show_overlays,
+                                    );
+                                });
                         } else {
                             ui.label("Layout результаты не найдены");
                         }
@@ -320,21 +362,37 @@ impl ZverApp {
 
                         let render_info = layout.collect_render_info(&dom);
                         if !render_info.is_empty() {
-                            egui::ScrollArea::both().show(ui, |ui| {
-                                let (response, painter) = ui.allocate_painter(
-                                    egui::vec2(1024.0, 768.0),
-                                    egui::Sense::hover(),
-                                );
+                            // Calculate actual content dimensions
+                            let mut max_x = 0.0f32;
+                            let mut max_y = 0.0f32;
+                            for info in &render_info {
+                                let right = info.layout.x + info.layout.width;
+                                let bottom = info.layout.y + info.layout.height;
+                                max_x = max_x.max(right);
+                                max_y = max_y.max(bottom);
+                            }
+                            
+                            // Add padding
+                            let canvas_width = (max_x + 20.0).max(800.0);
+                            let canvas_height = (max_y + 20.0).max(600.0);
 
-                                painter.rect_filled(response.rect, 0.0, egui::Color32::WHITE);
+                            egui::ScrollArea::both()
+                                .auto_shrink(false)
+                                .show(ui, |ui| {
+                                    let (response, painter) = ui.allocate_painter(
+                                        egui::vec2(canvas_width, canvas_height),
+                                        egui::Sense::hover(),
+                                    );
 
-                                render_clean_layout_from_results(
-                                    &painter,
-                                    response.rect.min,
-                                    &render_info,
-                                    &resolved_styles,
-                                );
-                            });
+                                    painter.rect_filled(response.rect, 0.0, egui::Color32::WHITE);
+
+                                    render_clean_layout_from_results(
+                                        &painter,
+                                        response.rect.min,
+                                        &render_info,
+                                        &resolved_styles,
+                                    );
+                                });
                         } else {
                             ui.label("Layout результаты не найдены. Загрузите страницу.");
                         }

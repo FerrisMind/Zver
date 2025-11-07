@@ -47,7 +47,11 @@ impl ResourceLoader {
             .user_agent("Zver/0.1")
             .timeout(std::time::Duration::from_secs(30))
             .build()
-            .expect("Failed to create HTTP client");
+            .unwrap_or_else(|e| {
+                eprintln!("Warning: Failed to create custom HTTP client: {}", e);
+                eprintln!("Falling back to default reqwest client");
+                reqwest::Client::new()
+            });
 
         let loader_client = client.clone();
 

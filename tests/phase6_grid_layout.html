@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 6: Тест Grid Layout</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .grid-item {
+            background-color: #3498db;
+            color: white;
+            padding: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Простой Grid */
+        .grid-simple {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 150px);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        /* Grid с разными размерами */
+        .grid-sizes {
+            display: grid;
+            grid-template-columns: 200px 1fr 2fr;
+            grid-template-rows: 100px 200px;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        /* Grid с auto-rows */
+        .grid-auto-rows {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: minmax(100px, auto);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .grid-auto-rows .grid-item {
+            background-color: #2ecc71;
+        }
+
+        /* Grid с размещением элементов */
+        .grid-positioning {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 100px);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .grid-item-large {
+            background-color: #e74c3c;
+            grid-row: 1 / 3;
+            grid-column: 1 / 3;
+        }
+
+        .grid-item-wide {
+            background-color: #f39c12;
+            grid-column: 3 / 5;
+        }
+
+        .grid-item-tall {
+            background-color: #9b59b6;
+            grid-row: 2 / 5;
+            grid-column: 3 / 4;
+        }
+
+        /* Grid с именованными линиями */
+        .grid-named-lines {
+            display: grid;
+            grid-template-columns: [start] 1fr [middle] 2fr [end];
+            grid-template-rows: [top] 100px [middle] 100px [bottom];
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .grid-item-start {
+            background-color: #1abc9c;
+            grid-column: start / middle;
+            grid-row: top / middle;
+        }
+
+        /* Grid с minmax() */
+        .grid-minmax {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .grid-minmax .grid-item {
+            background-color: #16a085;
+            min-height: 100px;
+        }
+
+        /* Grid с auto-fit */
+        .grid-auto-fit {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .grid-auto-fit .grid-item {
+            background-color: #c0392b;
+        }
+
+        /* Grid с auto-fill */
+        .grid-auto-fill {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .grid-auto-fill .grid-item {
+            background-color: #8e44ad;
+        }
+
+        /* Grid с выравниванием */
+        .grid-align {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 150px);
+            gap: 10px;
+            align-items: center;
+            justify-items: center;
+            margin: 20px 0;
+        }
+
+        .grid-align .grid-item {
+            background-color: #27ae60;
+            width: 80px;
+            height: 80px;
+        }
+
+        /* Grid с gap */
+        .grid-gap {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 100px);
+            row-gap: 20px;
+            column-gap: 30px;
+            margin: 20px 0;
+        }
+
+        .grid-gap .grid-item {
+            background-color: #d35400;
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Фаза 6: Тестирование Grid Layout</h1>
+
+        <div class="info">
+            <strong>Примечание:</strong> Эти тесты проверяют полную интеграцию Grid Layout с Taffy.
+            Все Grid-свойства должны корректно конвертироваться в Taffy::Style.
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 1: Простой Grid (3x2)</h2>
+            <div class="code">
+                display: grid;<br>
+                grid-template-columns: repeat(3, 1fr);<br>
+                grid-template-rows: repeat(2, 150px);
+            </div>
+            <div class="grid-simple">
+                <div class="grid-item">1</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+                <div class="grid-item">4</div>
+                <div class="grid-item">5</div>
+                <div class="grid-item">6</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: Grid с разными размерами</h2>
+            <div class="code">
+                grid-template-columns: 200px 1fr 2fr;<br>
+                grid-template-rows: 100px 200px;
+            </div>
+            <div class="grid-sizes">
+                <div class="grid-item">200px</div>
+                <div class="grid-item">1fr</div>
+                <div class="grid-item">2fr</div>
+                <div class="grid-item">100px</div>
+                <div class="grid-item">200px</div>
+                <div class="grid-item">Auto</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: Grid с auto-rows</h2>
+            <div class="code">
+                grid-template-columns: repeat(4, 1fr);<br>
+                grid-auto-rows: minmax(100px, auto);
+            </div>
+            <div class="grid-auto-rows">
+                <div class="grid-item">1</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+                <div class="grid-item">4</div>
+                <div class="grid-item">5<br>Многострочный<br>контент</div>
+                <div class="grid-item">6</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: Размещение элементов (span)</h2>
+            <div class="code">
+                .large { grid-row: 1 / 3; grid-column: 1 / 3; }<br>
+                .wide { grid-column: 3 / 5; }<br>
+                .tall { grid-row: 2 / 5; grid-column: 3 / 4; }
+            </div>
+            <div class="grid-positioning">
+                <div class="grid-item grid-item-large">Large (2x2)</div>
+                <div class="grid-item grid-item-wide">Wide (1x2)</div>
+                <div class="grid-item">4</div>
+                <div class="grid-item">5</div>
+                <div class="grid-item">6</div>
+                <div class="grid-item grid-item-tall">Tall (1x3)</div>
+                <div class="grid-item">8</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: Именованные линии</h2>
+            <div class="code">
+                grid-template-columns: [start] 1fr [middle] 2fr [end];<br>
+                grid-template-rows: [top] 100px [middle] 100px [bottom];<br>
+                grid-column: start / middle;<br>
+                grid-row: top / middle;
+            </div>
+            <div class="grid-named-lines">
+                <div class="grid-item grid-item-start">Named Lines</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+                <div class="grid-item">4</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 6: minmax() с auto-fit</h2>
+            <div class="code">
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            </div>
+            <div class="grid-minmax">
+                <div class="grid-item">1</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+                <div class="grid-item">4</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 7: auto-fit</h2>
+            <div class="code">
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            </div>
+            <div class="grid-auto-fit">
+                <div class="grid-item">1</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+                <div class="grid-item">4</div>
+                <div class="grid-item">5</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 8: auto-fill</h2>
+            <div class="code">
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            </div>
+            <div class="grid-auto-fill">
+                <div class="grid-item">1</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 9: Выравнивание элементов</h2>
+            <div class="code">
+                align-items: center;<br>
+                justify-items: center;
+            </div>
+            <div class="grid-align">
+                <div class="grid-item">1</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+                <div class="grid-item">4</div>
+                <div class="grid-item">5</div>
+                <div class="grid-item">6</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 10: row-gap и column-gap</h2>
+            <div class="code">
+                row-gap: 20px;<br>
+                column-gap: 30px;
+            </div>
+            <div class="grid-gap">
+                <div class="grid-item">1</div>
+                <div class="grid-item">2</div>
+                <div class="grid-item">3</div>
+                <div class="grid-item">4</div>
+                <div class="grid-item">5</div>
+                <div class="grid-item">6</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

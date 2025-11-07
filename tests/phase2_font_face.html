@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 2: Тест @font-face</title>
+    <style>
+        /* Font Face: Regular */
+        @font-face {
+            font-family: 'TestFont';
+            src: url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        /* Font Face: Bold (если есть) */
+        @font-face {
+            font-family: 'TestFont';
+            src: url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+
+        /* Font Face: Italic */
+        @font-face {
+            font-family: 'TestFont';
+            src: url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: italic;
+        }
+
+        /* Font Face: с local() fallback */
+        @font-face {
+            font-family: 'TestFontWithFallback';
+            src: local('Arial'), url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        /* Font Face: с font-display */
+        @font-face {
+            font-family: 'TestFontDisplay';
+            src: url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        /* Font Face: с unicode-range */
+        @font-face {
+            font-family: 'TestFontUnicode';
+            src: url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            unicode-range: U+0020-007F; /* Latin */
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .font-test {
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 15px;
+            background: #ecf0f1;
+            border-left: 4px solid #3498db;
+        }
+
+        .test-regular {
+            font-family: 'TestFont', sans-serif;
+        }
+
+        .test-bold {
+            font-family: 'TestFont', sans-serif;
+            font-weight: bold;
+        }
+
+        .test-italic {
+            font-family: 'TestFont', sans-serif;
+            font-style: italic;
+        }
+
+        .test-fallback {
+            font-family: 'TestFontWithFallback', sans-serif;
+        }
+
+        .test-display {
+            font-family: 'TestFontDisplay', sans-serif;
+        }
+
+        .test-unicode {
+            font-family: 'TestFontUnicode', sans-serif;
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Фаза 2: Тестирование @font-face</h1>
+
+        <div class="info">
+            <strong>Примечание:</strong> Шрифты должны загружаться из файла <code>assets/fonts/Roboto-Regular.ttf</code>.
+            Если файл не найден, будет использован fallback шрифт.
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 1: Regular font-weight</h2>
+            <div class="code">@font-face { font-family: 'TestFont'; src: url('...') format('truetype'); font-weight: normal; }</div>
+            <div class="font-test test-regular">
+                The quick brown fox jumps over the lazy dog. 1234567890
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: Bold font-weight</h2>
+            <div class="code">@font-face { font-family: 'TestFont'; src: url('...') format('truetype'); font-weight: bold; }</div>
+            <div class="font-test test-bold">
+                The quick brown fox jumps over the lazy dog. 1234567890
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: Italic font-style</h2>
+            <div class="code">@font-face { font-family: 'TestFont'; src: url('...') format('truetype'); font-style: italic; }</div>
+            <div class="font-test test-italic">
+                The quick brown fox jumps over the lazy dog. 1234567890
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: local() fallback</h2>
+            <div class="code">@font-face { font-family: 'TestFontWithFallback'; src: local('Arial'), url('...') format('truetype'); }</div>
+            <div class="font-test test-fallback">
+                The quick brown fox jumps over the lazy dog. 1234567890
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: font-display</h2>
+            <div class="code">@font-face { font-family: 'TestFontDisplay'; src: url('...') format('truetype'); font-display: swap; }</div>
+            <div class="font-test test-display">
+                The quick brown fox jumps over the lazy dog. 1234567890
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 6: unicode-range</h2>
+            <div class="code">@font-face { font-family: 'TestFontUnicode'; src: url('...') format('truetype'); unicode-range: U+0020-007F; }</div>
+            <div class="font-test test-unicode">
+                The quick brown fox jumps over the lazy dog. 1234567890
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

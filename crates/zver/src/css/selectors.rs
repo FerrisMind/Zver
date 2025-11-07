@@ -20,7 +20,7 @@ use thiserror::Error;
 
 use super::StyleRule;
 use super::properties::{self, AppliedProperty, Property};
-use crate::dom::{Document, Node};
+use crate::dom::{Document, ElementState, Node};
 
 /// Тип-ссылка на список селекторов, с которым работает движок.
 pub type SelectorListHandle = SelectorList<Simple>;
@@ -55,7 +55,15 @@ impl CompiledSelector {
 
     /// Проверяет соответствие DOM-узла селектору и возвращает специфику (если найдено).
     pub fn matches(&self, element: &NodeAdapter<'_>) -> Option<u32> {
-        let mut caches = self.caches.lock().expect("selector cache poisoned");
+        let mut caches = match self.caches.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                #[cfg(debug_assertions)]
+                eprintln!("Warning: Selector cache was poisoned, recovering with existing data");
+                poisoned.into_inner()
+            }
+        };
+
         let mut context = MatchingContext::new(
             MatchingMode::Normal,
             None,
@@ -76,6 +84,40 @@ impl CompiledSelector {
     pub fn selector_list(&self) -> &SelectorListHandle {
         &self.selector_list
     }
+
+    pub fn matches_pseudo(&self, element: &NodeAdapter<'_>, pseudo: PseudoElement) -> Option<u32> {
+        let mut caches = match self.caches.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                #[cfg(debug_assertions)]
+                eprintln!("Warning: Selector cache was poisoned, recovering with existing data");
+                poisoned.into_inner()
+            }
+        };
+
+        let filter = Self::pseudo_filter(pseudo);
+        let mut context = MatchingContext::new(
+            MatchingMode::ForStatelessPseudoElement,
+            None,
+            &mut caches,
+            QuirksMode::NoQuirks,
+            NeedsSelectorFlags::No,
+            MatchingForInvalidation::No,
+        );
+        context.pseudo_element_matching_fn = Some(&filter);
+
+        self.selector_list
+            .slice()
+            .iter()
+            .filter(|selector| {
+                selector
+                    .pseudo_element()
+                    .is_some_and(&filter)
+            })
+            .filter(|selector| matching::matches_selector(selector, 0, None, element, &mut context))
+            .map(|selector| selector.specificity())
+            .max()
+    }
 }
 
 impl Clone for CompiledSelector {
@@ -94,6 +136,33 @@ impl fmt::Debug for CompiledSelector {
             .field("selector", &self.selector_list.to_css_string())
             .field("used", &self.used_in_last_pass)
             .finish()
+    }
+}
+
+impl CompiledSelector {
+    fn pseudo_filter(pseudo: PseudoElement) -> fn(&PseudoElement) -> bool {
+        match pseudo {
+            PseudoElement::Before => Self::is_before,
+            PseudoElement::After => Self::is_after,
+            PseudoElement::FirstLine => Self::is_first_line,
+            PseudoElement::FirstLetter => Self::is_first_letter,
+        }
+    }
+
+    fn is_before(candidate: &PseudoElement) -> bool {
+        matches!(candidate, PseudoElement::Before)
+    }
+
+    fn is_after(candidate: &PseudoElement) -> bool {
+        matches!(candidate, PseudoElement::After)
+    }
+
+    fn is_first_line(candidate: &PseudoElement) -> bool {
+        matches!(candidate, PseudoElement::FirstLine)
+    }
+
+    fn is_first_letter(candidate: &PseudoElement) -> bool {
+        matches!(candidate, PseudoElement::FirstLetter)
     }
 }
 
@@ -167,6 +236,148 @@ impl<'a> NodeAdapter<'a> {
             }
         }
         None
+    }
+
+    fn sibling_position<F>(&self, predicate: F) -> Option<(usize, usize)>
+    where
+        F: Fn(&Node) -> bool,
+    {
+        let node = self.node()?;
+        let parent_id = node.parent?;
+        let parent = self.document.nodes.get(&parent_id)?;
+
+        let mut current_index: Option<usize> = None;
+        let mut total = 0usize;
+
+        for &child_id in &parent.children {
+            let child = self.document.nodes.get(&child_id)?;
+            if !child.is_element() || !predicate(child) {
+                continue;
+            }
+
+            total += 1;
+            if child_id == self.node_id {
+                current_index = Some(total);
+            }
+        }
+
+        current_index.map(|index| (index, total))
+    }
+
+    fn structural_position(&self) -> Option<(usize, usize)> {
+        self.sibling_position(|_| true)
+    }
+
+    fn type_position(&self) -> Option<(usize, usize)> {
+        let tag = {
+            let node = self.node()?;
+            let tag = node.tag_name.as_ref()?;
+            tag.to_ascii_lowercase()
+        };
+
+        self.sibling_position(|sibling| {
+            sibling
+                .tag_name
+                .as_ref()
+                .map(|name| name.eq_ignore_ascii_case(&tag))
+                .unwrap_or(false)
+        })
+    }
+
+    fn has_attribute(node: &Node, name: &str) -> bool {
+        Self::attribute_value(node, name).is_some()
+    }
+
+    fn attribute_value<'n>(node: &'n Node, name: &str) -> Option<&'n str> {
+        node.attributes
+            .iter()
+            .find(|(attr_name, _)| attr_name.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str())
+    }
+
+    fn is_form_control(node: &Node) -> bool {
+        node.tag_name
+            .as_deref()
+            .map(|tag| {
+                ["input", "textarea", "select", "button", "option"]
+                    .iter()
+                    .any(|candidate| tag.eq_ignore_ascii_case(candidate))
+            })
+            .unwrap_or(false)
+    }
+
+    fn is_checkable(node: &Node) -> bool {
+        if let Some(tag) = node.tag_name.as_deref() {
+            if tag.eq_ignore_ascii_case("option") {
+                return true;
+            }
+            if tag.eq_ignore_ascii_case("input")
+                && let Some(input_type) = Self::attribute_value(node, "type")
+            {
+                return input_type.eq_ignore_ascii_case("checkbox")
+                    || input_type.eq_ignore_ascii_case("radio");
+            }
+        }
+        false
+    }
+
+    fn is_disabled(node: &Node) -> bool {
+        node.element_state.contains(ElementState::DISABLED) || Self::has_attribute(node, "disabled")
+    }
+
+    fn is_checked(node: &Node) -> bool {
+        if node
+            .tag_name
+            .as_deref()
+            .is_some_and(|tag| tag.eq_ignore_ascii_case("option"))
+        {
+            return Self::has_attribute(node, "selected");
+        }
+
+        Self::is_checkable(node)
+            && (node.element_state.contains(ElementState::CHECKED)
+                || Self::has_attribute(node, "checked"))
+    }
+
+    fn is_link_element(node: &Node) -> bool {
+        if !Self::has_attribute(node, "href") {
+            return false;
+        }
+
+        node.tag_name
+            .as_deref()
+            .map(|tag| {
+                tag.eq_ignore_ascii_case("a")
+                    || tag.eq_ignore_ascii_case("area")
+                    || tag.eq_ignore_ascii_case("link")
+            })
+            .unwrap_or(false)
+    }
+
+    fn is_placeholder_shown(node: &Node) -> bool {
+        Self::is_form_control(node) && Self::has_attribute(node, "placeholder")
+    }
+
+    fn is_required(node: &Node) -> bool {
+        Self::is_form_control(node) && Self::has_attribute(node, "required")
+    }
+
+    fn is_read_only(node: &Node) -> bool {
+        !Self::is_form_control(node)
+            || Self::has_attribute(node, "readonly")
+            || Self::is_disabled(node)
+    }
+
+    fn is_read_write(node: &Node) -> bool {
+        Self::is_form_control(node)
+            && !Self::has_attribute(node, "readonly")
+            && !Self::is_disabled(node)
+    }
+
+    fn is_aria_invalid(node: &Node) -> bool {
+        Self::attribute_value(node, "aria-invalid")
+            .map(|value| value.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
     }
 }
 
@@ -269,10 +480,48 @@ impl<'a> Element for NodeAdapter<'a> {
 
     fn match_non_ts_pseudo_class(
         &self,
-        _pc: &NonTSPseudoClass,
+        pc: &NonTSPseudoClass,
         _context: &mut MatchingContext<'_, Self::Impl>,
     ) -> bool {
-        false
+        use NonTSPseudoClass::*;
+
+        let Some(node) = self.node() else {
+            return false;
+        };
+
+        match pc {
+            FirstChild => self.structural_position().is_some_and(|(pos, _)| pos == 1),
+            LastChild => self
+                .structural_position()
+                .is_some_and(|(pos, total)| pos == total),
+            OnlyChild => self
+                .structural_position()
+                .is_some_and(|(_, total)| total == 1),
+            FirstOfType => self.type_position().is_some_and(|(pos, _)| pos == 1),
+            LastOfType => self
+                .type_position()
+                .is_some_and(|(pos, total)| pos == total),
+            // Note: nth-child, nth-last-child, nth-of-type, nth-last-of-type
+            // обрабатываются через Component::Nth в selectors crate
+            Hover => node.element_state.contains(ElementState::HOVER),
+            Focus => node.element_state.contains(ElementState::FOCUS),
+            Active => node.element_state.contains(ElementState::ACTIVE),
+            Disabled => Self::is_disabled(node),
+            Enabled => Self::is_form_control(node) && !Self::is_disabled(node),
+            Checked => Self::is_checked(node),
+            Indeterminate => node.element_state.contains(ElementState::INDETERMINATE),
+            Link | AnyLink => Self::is_link_element(node),
+            Visited => false,
+            ReadOnly => Self::is_read_only(node),
+            ReadWrite => Self::is_read_write(node),
+            PlaceholderShown => Self::is_placeholder_shown(node),
+            Valid => !Self::is_aria_invalid(node),
+            Invalid => Self::is_aria_invalid(node),
+            InRange => false,
+            OutOfRange => false,
+            Required => Self::is_required(node),
+            Optional => Self::is_form_control(node) && !Self::is_required(node),
+        }
     }
 
     fn match_pseudo_element(
@@ -370,43 +619,114 @@ impl parser::SelectorImpl for Simple {
     type ExtraMatchingData<'a> = ();
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NonTSPseudoClass {}
+/// Псевдоклассы, поддерживаемые в Zver (Фаза 3)
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NonTSPseudoClass {
+    // Структурные псевдоклассы (простые, без параметров)
+    FirstChild,
+    LastChild,
+    OnlyChild,
+    FirstOfType,
+    LastOfType,
+    // Note: nth-child, nth-last-child, nth-of-type, nth-last-of-type
+    // обрабатываются selectors crate через Component::Nth автоматически
+
+    // Псевдоклассы состояния
+    Hover,
+    Focus,
+    Active,
+    Disabled,
+    Enabled,
+    Checked,
+    Indeterminate,
+
+    // Псевдоклассы типа ссылок
+    Link,
+    Visited,
+    AnyLink,
+
+    // Псевдоклассы формы
+    ReadOnly,
+    ReadWrite,
+    PlaceholderShown,
+    Valid,
+    Invalid,
+    InRange,
+    OutOfRange,
+    Required,
+    Optional,
+}
 
 impl parser::NonTSPseudoClass for NonTSPseudoClass {
     type Impl = Simple;
 
     fn is_active_or_hover(&self) -> bool {
-        false
+        matches!(self, Self::Active | Self::Hover)
     }
 
     fn is_user_action_state(&self) -> bool {
-        false
+        matches!(self, Self::Active | Self::Hover | Self::Focus)
     }
 }
 
 impl cssparser::ToCss for NonTSPseudoClass {
-    fn to_css<W>(&self, _dest: &mut W) -> fmt::Result
+    fn to_css<W>(&self, dest: &mut W) -> fmt::Result
     where
         W: fmt::Write,
     {
-        Ok(())
+        match self {
+            Self::FirstChild => dest.write_str(":first-child"),
+            Self::LastChild => dest.write_str(":last-child"),
+            Self::OnlyChild => dest.write_str(":only-child"),
+            Self::FirstOfType => dest.write_str(":first-of-type"),
+            Self::LastOfType => dest.write_str(":last-of-type"),
+            Self::Hover => dest.write_str(":hover"),
+            Self::Focus => dest.write_str(":focus"),
+            Self::Active => dest.write_str(":active"),
+            Self::Disabled => dest.write_str(":disabled"),
+            Self::Enabled => dest.write_str(":enabled"),
+            Self::Checked => dest.write_str(":checked"),
+            Self::Indeterminate => dest.write_str(":indeterminate"),
+            Self::Link => dest.write_str(":link"),
+            Self::Visited => dest.write_str(":visited"),
+            Self::AnyLink => dest.write_str(":any-link"),
+            Self::ReadOnly => dest.write_str(":read-only"),
+            Self::ReadWrite => dest.write_str(":read-write"),
+            Self::PlaceholderShown => dest.write_str(":placeholder-shown"),
+            Self::Valid => dest.write_str(":valid"),
+            Self::Invalid => dest.write_str(":invalid"),
+            Self::InRange => dest.write_str(":in-range"),
+            Self::OutOfRange => dest.write_str(":out-of-range"),
+            Self::Required => dest.write_str(":required"),
+            Self::Optional => dest.write_str(":optional"),
+        }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PseudoElement {}
+/// Псевдоэлементы, поддерживаемые в Zver (Фаза 3)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PseudoElement {
+    Before,
+    After,
+    FirstLine,
+    FirstLetter,
+}
 
 impl parser::PseudoElement for PseudoElement {
     type Impl = Simple;
 }
 
 impl cssparser::ToCss for PseudoElement {
-    fn to_css<W>(&self, _dest: &mut W) -> fmt::Result
+    fn to_css<W>(&self, dest: &mut W) -> fmt::Result
     where
         W: fmt::Write,
     {
-        Ok(())
+        match self {
+            Self::Before => dest.write_str("::before"),
+            Self::After => dest.write_str("::after"),
+            Self::FirstLine => dest.write_str("::first-line"),
+            Self::FirstLetter => dest.write_str("::first-letter"),
+        }
     }
 }
 
@@ -423,6 +743,80 @@ impl<'i> parser::Parser<'i> for SelectorParser {
 
     fn parse_has(&self) -> bool {
         true
+    }
+
+    fn parse_nth_child_of(&self) -> bool {
+        false // Пока не поддерживаем селекторы "of" в nth-child
+    }
+
+    fn parse_non_ts_pseudo_class(
+        &self,
+        _location: cssparser::SourceLocation,
+        name: cssparser::CowRcStr<'i>,
+    ) -> Result<NonTSPseudoClass, cssparser::ParseError<'i, Self::Error>> {
+        use NonTSPseudoClass::*;
+
+        match &*name {
+            // Структурные псевдоклассы
+            "first-child" => Ok(FirstChild),
+            "last-child" => Ok(LastChild),
+            "only-child" => Ok(OnlyChild),
+            "first-of-type" => Ok(FirstOfType),
+            "last-of-type" => Ok(LastOfType),
+
+            // Псевдоклассы состояния
+            "hover" => Ok(Hover),
+            "focus" => Ok(Focus),
+            "active" => Ok(Active),
+            "disabled" => Ok(Disabled),
+            "enabled" => Ok(Enabled),
+            "checked" => Ok(Checked),
+            "indeterminate" => Ok(Indeterminate),
+
+            // Псевдоклассы ссылок
+            "link" => Ok(Link),
+            "visited" => Ok(Visited),
+            "any-link" => Ok(AnyLink),
+
+            // Псевдоклассы формы
+            "read-only" => Ok(ReadOnly),
+            "read-write" => Ok(ReadWrite),
+            "placeholder-shown" => Ok(PlaceholderShown),
+            "valid" => Ok(Valid),
+            "invalid" => Ok(Invalid),
+            "in-range" => Ok(InRange),
+            "out-of-range" => Ok(OutOfRange),
+            "required" => Ok(Required),
+            "optional" => Ok(Optional),
+
+            _ => Err(cssparser::ParseError {
+                kind: cssparser::ParseErrorKind::Custom(
+                    SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name),
+                ),
+                location: _location,
+            }),
+        }
+    }
+
+    fn parse_pseudo_element(
+        &self,
+        _location: cssparser::SourceLocation,
+        name: cssparser::CowRcStr<'i>,
+    ) -> Result<PseudoElement, cssparser::ParseError<'i, Self::Error>> {
+        use PseudoElement::*;
+
+        match &*name {
+            "before" => Ok(Before),
+            "after" => Ok(After),
+            "first-line" => Ok(FirstLine),
+            "first-letter" => Ok(FirstLetter),
+            _ => Err(cssparser::ParseError {
+                kind: cssparser::ParseErrorKind::Custom(
+                    SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name),
+                ),
+                location: _location,
+            }),
+        }
     }
 }
 

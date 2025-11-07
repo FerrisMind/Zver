@@ -9,11 +9,13 @@ impl RenderEngine {
         &mut self,
         window: &'static Window,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
+        let instance = wgpu::Instance::default();
 
+        // SAFETY: Creating a surface from a window is inherently unsafe because:
+        // 1. The window handle must remain valid for the lifetime of the surface
+        // 2. winit::Window is guaranteed to outlive the surface in our architecture
+        // 3. The surface is stored alongside the window in RenderEngine
+        // 4. Both are dropped together, preventing use-after-free
         #[allow(unused_unsafe)]
         let surface = unsafe { instance.create_surface(window)? };
 

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 2: Тест @media queries</title>
+    <style>
+        /* Базовые стили */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .responsive-box {
+            width: 100%;
+            height: 100px;
+            background-color: #3498db;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Media Query: min-width */
+        @media (min-width: 768px) {
+            .responsive-box {
+                background-color: #2ecc71;
+            }
+            
+            body {
+                background-color: #e8f5e9;
+            }
+        }
+
+        /* Media Query: max-width */
+        @media (max-width: 600px) {
+            .responsive-box {
+                background-color: #e74c3c;
+                height: 80px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+        }
+
+        /* Media Query: min-width и max-width */
+        @media (min-width: 600px) and (max-width: 900px) {
+            .responsive-box {
+                background-color: #f39c12;
+            }
+        }
+
+        /* Media Query: orientation */
+        @media (orientation: landscape) {
+            .container {
+                max-width: 1400px;
+            }
+        }
+
+        @media (orientation: portrait) {
+            .container {
+                max-width: 800px;
+            }
+        }
+
+        /* Media Query: min-height */
+        @media (min-height: 800px) {
+            body {
+                padding: 40px;
+            }
+        }
+
+        /* Media Query: screen type */
+        @media screen {
+            .test-section {
+                border: 2px solid #3498db;
+            }
+        }
+
+        @media print {
+            .test-section {
+                border: 1px solid #000;
+            }
+            
+            .responsive-box {
+                background-color: #000 !important;
+                color: white;
+            }
+        }
+
+        /* Media Query: not modifier */
+        @media not screen {
+            body {
+                background-color: #fff;
+            }
+        }
+
+        /* Media Query: aspect-ratio */
+        @media (min-aspect-ratio: 16/9) {
+            .responsive-box {
+                height: 120px;
+            }
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Фаза 2: Тестирование @media queries</h1>
+        
+        <div class="info">
+            <strong>Инструкции для тестирования:</strong>
+            <ul>
+                <li>Измените размер окна браузера и проверьте изменение цветов</li>
+                <li>При ширине &lt; 600px: красный фон</li>
+                <li>При ширине 600-900px: оранжевый фон</li>
+                <li>При ширине &gt; 768px: зеленый фон</li>
+                <li>При высоте &gt; 800px: увеличенные отступы</li>
+                <li>В landscape режиме: шире контейнер</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 1: min-width</h2>
+            <p>Коробка должна быть зеленой при ширине &gt; 768px</p>
+            <div class="responsive-box">Responsive Box</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: max-width</h2>
+            <p>Коробка должна быть красной и меньше при ширине &lt; 600px</p>
+            <div class="responsive-box">Responsive Box</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: orientation</h2>
+            <p>Контейнер должен менять максимальную ширину в зависимости от ориентации</p>
+            <div class="responsive-box">Orientation Test</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: min-height</h2>
+            <p>Отступы body должны увеличиться при высоте &gt; 800px</p>
+            <div class="responsive-box">Height Test</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: screen vs print</h2>
+            <p>При печати (print media) стили должны измениться</p>
+            <div class="responsive-box">Print Test</div>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 7: Тест анимаций и transitions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .animation-box {
+            width: 100px;
+            height: 100px;
+            background-color: #3498db;
+            margin: 20px auto;
+            border-radius: 8px;
+        }
+
+        /* Transitions */
+        .transition-color {
+            width: 200px;
+            height: 100px;
+            background-color: #3498db;
+            transition: background-color 0.5s ease;
+            margin: 20px auto;
+        }
+
+        .transition-color:hover {
+            background-color: #e74c3c;
+        }
+
+        .transition-transform {
+            width: 100px;
+            height: 100px;
+            background-color: #2ecc71;
+            transition: transform 0.3s ease-in-out;
+            margin: 20px auto;
+        }
+
+        .transition-transform:hover {
+            transform: scale(1.2) rotate(45deg);
+        }
+
+        .transition-multiple {
+            width: 150px;
+            height: 150px;
+            background-color: #f39c12;
+            border-radius: 0;
+            transition: background-color 0.4s, transform 0.4s, border-radius 0.4s;
+            margin: 20px auto;
+        }
+
+        .transition-multiple:hover {
+            background-color: #9b59b6;
+            transform: translateY(-20px);
+            border-radius: 50%;
+        }
+
+        .transition-delay {
+            width: 100px;
+            height: 100px;
+            background-color: #1abc9c;
+            transition: transform 0.5s ease 0.3s;
+            margin: 20px auto;
+        }
+
+        .transition-delay:hover {
+            transform: translateX(100px);
+        }
+
+        .transition-timing {
+            width: 100px;
+            height: 50px;
+            background-color: #e67e22;
+            margin: 20px auto;
+            transition: width 1s;
+        }
+
+        .transition-timing:hover {
+            width: 300px;
+        }
+
+        .transition-timing-linear {
+            transition-timing-function: linear;
+        }
+
+        .transition-timing-ease {
+            transition-timing-function: ease;
+        }
+
+        .transition-timing-ease-in {
+            transition-timing-function: ease-in;
+        }
+
+        .transition-timing-ease-out {
+            transition-timing-function: ease-out;
+        }
+
+        .transition-timing-ease-in-out {
+            transition-timing-function: ease-in-out;
+        }
+
+        /* Animations */
+        @keyframes slide {
+            from {
+                transform: translateX(0);
+            }
+            to {
+                transform: translateX(200px);
+            }
+        }
+
+        .animation-slide {
+            animation: slide 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animation-rotate {
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-50px);
+            }
+        }
+
+        .animation-bounce {
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        @keyframes colorChange {
+            0% {
+                background-color: #3498db;
+            }
+            50% {
+                background-color: #2ecc71;
+            }
+            100% {
+                background-color: #e74c3c;
+            }
+        }
+
+        .animation-color {
+            animation: colorChange 3s ease-in-out infinite;
+        }
+
+        @keyframes complex {
+            0% {
+                transform: translate(0, 0) rotate(0deg) scale(1);
+                background-color: #3498db;
+            }
+            25% {
+                transform: translate(100px, 0) rotate(90deg) scale(1.2);
+                background-color: #2ecc71;
+            }
+            50% {
+                transform: translate(100px, 100px) rotate(180deg) scale(1);
+                background-color: #e74c3c;
+            }
+            75% {
+                transform: translate(0, 100px) rotate(270deg) scale(0.8);
+                background-color: #f39c12;
+            }
+            100% {
+                transform: translate(0, 0) rotate(360deg) scale(1);
+                background-color: #3498db;
+            }
+        }
+
+        .animation-complex {
+            animation: complex 4s ease-in-out infinite;
+        }
+
+        /* Animation properties */
+        .animation-duration {
+            animation: slide 3s ease-in-out infinite;
+        }
+
+        .animation-delay {
+            animation: slide 2s ease-in-out 1s infinite;
+        }
+
+        .animation-iteration {
+            animation: bounce 1s ease-in-out 3;
+        }
+
+        .animation-direction {
+            animation: slide 2s ease-in-out infinite alternate-reverse;
+        }
+
+        .animation-fill-mode {
+            animation: slide 2s ease-in-out forwards;
+        }
+
+        .animation-play-state {
+            animation: rotate 2s linear infinite;
+        }
+
+        .animation-play-state.paused {
+            animation-play-state: paused;
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Фаза 7: Тестирование анимаций и transitions</h1>
+
+        <div class="info">
+            <strong>Примечание:</strong> Эти тесты требуют runtime реализации анимаций и transitions.
+            Transitions должны работать при изменении свойств (hover, focus, etc.).
+            Animations должны запускаться автоматически при загрузке страницы.
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 1: Transition - цвет</h2>
+            <div class="code">transition: background-color 0.5s ease;</div>
+            <div class="transition-color">Наведите курсор (цвет должен плавно измениться)</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: Transition - transform</h2>
+            <div class="code">transition: transform 0.3s ease-in-out;</div>
+            <div class="transition-transform">Наведите курсор (масштаб и поворот)</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: Transition - несколько свойств</h2>
+            <div class="code">transition: background-color 0.4s, transform 0.4s, border-radius 0.4s;</div>
+            <div class="transition-multiple">Наведите курсор (цвет, позиция, форма)</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: Transition - delay</h2>
+            <div class="code">transition: transform 0.5s ease 0.3s;</div>
+            <div class="transition-delay">Наведите курсор (задержка 0.3s перед началом)</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: Transition - timing functions</h2>
+            <div class="code">
+                linear, ease, ease-in, ease-out, ease-in-out
+            </div>
+            <div class="transition-timing transition-timing-linear">Linear</div>
+            <div class="transition-timing transition-timing-ease">Ease</div>
+            <div class="transition-timing transition-timing-ease-in">Ease-in</div>
+            <div class="transition-timing transition-timing-ease-out">Ease-out</div>
+            <div class="transition-timing transition-timing-ease-in-out">Ease-in-out</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 6: Animation - slide (infinite alternate)</h2>
+            <div class="code">animation: slide 2s ease-in-out infinite alternate;</div>
+            <div class="animation-box animation-slide"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 7: Animation - rotate (infinite)</h2>
+            <div class="code">animation: rotate 2s linear infinite;</div>
+            <div class="animation-box animation-rotate"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 8: Animation - bounce</h2>
+            <div class="code">animation: bounce 1s ease-in-out infinite;</div>
+            <div class="animation-box animation-bounce"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 9: Animation - color change</h2>
+            <div class="code">animation: colorChange 3s ease-in-out infinite;</div>
+            <div class="animation-box animation-color"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 10: Animation - complex (multiple properties)</h2>
+            <div class="code">animation: complex 4s ease-in-out infinite;</div>
+            <div class="animation-box animation-complex"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 11: Animation - duration</h2>
+            <div class="code">animation: slide 3s ease-in-out infinite;</div>
+            <div class="animation-box animation-duration"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 12: Animation - delay</h2>
+            <div class="code">animation: slide 2s ease-in-out 1s infinite;</div>
+            <div class="animation-box animation-delay"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 13: Animation - iteration count</h2>
+            <div class="code">animation: bounce 1s ease-in-out 3;</div>
+            <div class="animation-box animation-iteration"></div>
+            <p>Анимация должна выполниться 3 раза и остановиться</p>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 14: Animation - direction (alternate-reverse)</h2>
+            <div class="code">animation: slide 2s ease-in-out infinite alternate-reverse;</div>
+            <div class="animation-box animation-direction"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 15: Animation - fill-mode (forwards)</h2>
+            <div class="code">animation: slide 2s ease-in-out forwards;</div>
+            <div class="animation-box animation-fill-mode"></div>
+            <p>Элемент должен остаться в конечной позиции после завершения</p>
+        </div>
+    </div>
+</body>
+</html>
+

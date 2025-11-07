@@ -6,6 +6,7 @@ pub mod types;
 pub use render::*;
 pub use types::*;
 
+use crate::css::{PseudoStyle, selectors::PseudoElement};
 use crate::dom::Document;
 use crate::layout::styles::apply_default_tag_styles;
 use std::collections::HashMap;
@@ -103,7 +104,17 @@ pub struct LayoutEngine {
     resolved_styles: HashMap<usize, types::ComputedStyle>,
 }
 
+// SAFETY: LayoutEngine can be safely sent between threads because:
+// 1. TaffyTree is designed to be Send (contains no thread-local data)
+// 2. All access is protected by RwLock in the parent Zver struct
+// 3. HashMap and Vec are Send when their contents are Send
+// 4. TextMeasureContext and LayoutResult are plain data structures
 unsafe impl Send for LayoutEngine {}
+
+// SAFETY: LayoutEngine can be shared between threads (behind Arc<RwLock<>>) because:
+// 1. All mutations require exclusive lock (RwLock::write)
+// 2. All reads are performed under shared lock (RwLock::read)
+// 3. No interior mutability without synchronization
 unsafe impl Sync for LayoutEngine {}
 
 impl LayoutEngine {
@@ -135,10 +146,11 @@ impl LayoutEngine {
         &mut self,
         document: &Document,
         styles: &HashMap<usize, HashMap<String, String>>,
+        pseudo_styles: &HashMap<usize, HashMap<PseudoElement, PseudoStyle>>,
     ) -> HashMap<usize, LayoutResult> {
         // 1. Строим Taffy дерево с контекстами для текста (очищает старое состояние)
         if self
-            .build_taffy_tree_with_contexts(document, styles)
+            .build_taffy_tree_with_contexts(document, styles, pseudo_styles)
             .is_none()
         {
             return HashMap::new();
@@ -174,6 +186,7 @@ impl LayoutEngine {
         &mut self,
         document: &Document,
         styles: &HashMap<usize, HashMap<String, String>>,
+        pseudo_styles: &HashMap<usize, HashMap<PseudoElement, PseudoStyle>>,
     ) -> Option<NodeId> {
         // Очищаем старое состояние
         if let Some(root) = self.root_node.take() {
@@ -185,7 +198,8 @@ impl LayoutEngine {
         self.resolved_styles.clear();
 
         let root_id = document.root?;
-        let (taffy_root, _) = self.build_node_recursive(document, root_id, styles, None)?;
+        let (taffy_root, _) =
+            self.build_node_recursive(document, root_id, styles, pseudo_styles, None)?;
         self.root_node = Some(taffy_root);
         Some(taffy_root)
     }
@@ -196,6 +210,7 @@ impl LayoutEngine {
         document: &Document,
         dom_node_id: usize,
         styles: &HashMap<usize, HashMap<String, String>>,
+        pseudo_styles: &HashMap<usize, HashMap<PseudoElement, PseudoStyle>>,
         parent_style: Option<&ComputedStyle>,
     ) -> Option<(NodeId, crate::layout::types::Display)> {
         // Получаем стили для узла
@@ -278,33 +293,57 @@ impl LayoutEngine {
         // Рекурсивно создаем детей
         let mut taffy_children = Vec::new();
         let mut inline_group: Vec<NodeId> = Vec::new();
+
+        if let Some((before_id, before_display)) = self.build_pseudo_element_node(
+            document,
+            dom_node_id,
+            PseudoElement::Before,
+            pseudo_styles,
+            &computed_style,
+        ) {
+            self.push_layout_child(
+                before_id,
+                before_display,
+                &mut inline_group,
+                &mut taffy_children,
+            );
+        }
+
         if let Some(dom_node) = document.nodes.get(&dom_node_id) {
             for &child_dom_id in &dom_node.children {
-                if let Some((child_taffy_id, child_display)) =
-                    self.build_node_recursive(document, child_dom_id, styles, Some(&computed_style))
-                {
-                    if matches!(child_display, crate::layout::types::Display::Inline) {
-                        inline_group.push(child_taffy_id);
-                    } else {
-                        if !inline_group.is_empty() {
-                            if let Some(container_id) = self.create_inline_container(&inline_group)
-                            {
-                                taffy_children.push(container_id);
-                            }
-                            inline_group.clear();
-                        }
-                        taffy_children.push(child_taffy_id);
-                    }
+                if let Some((child_taffy_id, child_display)) = self.build_node_recursive(
+                    document,
+                    child_dom_id,
+                    styles,
+                    pseudo_styles,
+                    Some(&computed_style),
+                ) {
+                    self.push_layout_child(
+                        child_taffy_id,
+                        child_display,
+                        &mut inline_group,
+                        &mut taffy_children,
+                    );
                 }
             }
         }
 
-        if !inline_group.is_empty() {
-            if let Some(container_id) = self.create_inline_container(&inline_group) {
-                taffy_children.push(container_id);
-            }
-            inline_group.clear();
+        if let Some((after_id, after_display)) = self.build_pseudo_element_node(
+            document,
+            dom_node_id,
+            PseudoElement::After,
+            pseudo_styles,
+            &computed_style,
+        ) {
+            self.push_layout_child(
+                after_id,
+                after_display,
+                &mut inline_group,
+                &mut taffy_children,
+            );
         }
+
+        self.flush_inline_group(&mut inline_group, &mut taffy_children);
 
         // Создаем Taffy узел
         let taffy_node_id = if context.is_some() {
@@ -344,6 +383,86 @@ impl LayoutEngine {
         };
 
         self.taffy.new_with_children(style, children).ok()
+    }
+
+    fn push_layout_child(
+        &mut self,
+        child_id: NodeId,
+        display: crate::layout::types::Display,
+        inline_group: &mut Vec<NodeId>,
+        taffy_children: &mut Vec<NodeId>,
+    ) {
+        if matches!(display, crate::layout::types::Display::Inline) {
+            inline_group.push(child_id);
+        } else {
+            self.flush_inline_group(inline_group, taffy_children);
+            taffy_children.push(child_id);
+        }
+    }
+
+    fn flush_inline_group(
+        &mut self,
+        inline_group: &mut Vec<NodeId>,
+        taffy_children: &mut Vec<NodeId>,
+    ) {
+        if inline_group.is_empty() {
+            return;
+        }
+
+        if let Some(container_id) = self.create_inline_container(inline_group) {
+            taffy_children.push(container_id);
+        }
+        inline_group.clear();
+    }
+
+    fn build_pseudo_element_node(
+        &mut self,
+        document: &Document,
+        owner_id: usize,
+        pseudo: PseudoElement,
+        pseudo_styles: &HashMap<usize, HashMap<PseudoElement, PseudoStyle>>,
+        parent_style: &ComputedStyle,
+    ) -> Option<(NodeId, crate::layout::types::Display)> {
+        let styles_for_owner = pseudo_styles.get(&owner_id)?;
+        let pseudo_style = styles_for_owner.get(&pseudo)?;
+        let pseudo_node_id = document.pseudo_child_id(owner_id, pseudo)?;
+
+        let mut computed_style = ComputedStyle::from_css_properties(&pseudo_style.properties);
+        if !pseudo_style.properties.contains_key("display") {
+            computed_style.display = crate::layout::types::Display::Inline;
+        }
+        inherit_computed_style(&mut computed_style, Some(parent_style));
+
+        if matches!(computed_style.display, crate::layout::types::Display::None) {
+            return None;
+        }
+
+        let text_content = document
+            .nodes
+            .get(&pseudo_node_id)
+            .and_then(|node| node.text_content.clone())
+            .filter(|content| !content.is_empty());
+
+        let context = text_content.map(|content| TextMeasureContext {
+            content,
+            font_size: computed_style.font_size,
+            font_weight: computed_style.font_weight,
+            font_style: computed_style.font_style,
+        });
+
+        let taffy_node_id = if let Some(ctx) = context {
+            self.taffy
+                .new_leaf_with_context(computed_style.to_taffy_style(), Some(ctx))
+                .ok()?
+        } else {
+            self.taffy.new_leaf(computed_style.to_taffy_style()).ok()?
+        };
+
+        self.resolved_styles
+            .insert(pseudo_node_id, computed_style.clone());
+        self.node_mapping.insert(pseudo_node_id, taffy_node_id);
+
+        Some((taffy_node_id, computed_style.display))
     }
 
     /// Вычисляет layout с измерением текста
@@ -428,6 +547,19 @@ impl LayoutEngine {
                     }
                 }
             }
+            if let Some(pseudo_children) = document.pseudo_children(dom_node_id) {
+                for &pseudo_dom_id in pseudo_children.values() {
+                    if let Some(&pseudo_taffy_id) = self.node_mapping.get(&pseudo_dom_id) {
+                        self.extract_node_layout(
+                            document,
+                            pseudo_dom_id,
+                            pseudo_taffy_id,
+                            abs_x,
+                            abs_y,
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -475,6 +607,11 @@ impl LayoutEngine {
             // Рекурсивно обрабатываем детей
             for &child_id in &dom_node.children {
                 self.collect_render_info_recursive(render_list, document, child_id);
+            }
+            if let Some(pseudo_children) = document.pseudo_children(dom_node_id) {
+                for &pseudo_dom_id in pseudo_children.values() {
+                    self.collect_render_info_recursive(render_list, document, pseudo_dom_id);
+                }
             }
         }
     }

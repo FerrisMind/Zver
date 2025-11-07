@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 2: Тест @keyframes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .animation-box {
+            width: 100px;
+            height: 100px;
+            background-color: #3498db;
+            margin: 20px auto;
+            border-radius: 8px;
+        }
+
+        /* Keyframes: fadeIn */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 2s ease-in-out;
+        }
+
+        /* Keyframes: slideIn */
+        @keyframes slideIn {
+            0% {
+                transform: translateX(-100px);
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 1.5s ease-out;
+        }
+
+        /* Keyframes: bounce */
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-30px);
+            }
+        }
+
+        .bounce {
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        /* Keyframes: rotate */
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .rotate {
+            animation: rotate 2s linear infinite;
+        }
+
+        /* Keyframes: scale */
+        @keyframes scale {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.5);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .scale {
+            animation: scale 2s ease-in-out infinite;
+        }
+
+        /* Keyframes: colorChange */
+        @keyframes colorChange {
+            0% {
+                background-color: #3498db;
+            }
+            33% {
+                background-color: #2ecc71;
+            }
+            66% {
+                background-color: #e74c3c;
+            }
+            100% {
+                background-color: #3498db;
+            }
+        }
+
+        .color-change {
+            animation: colorChange 3s ease-in-out infinite;
+        }
+
+        /* Keyframes: complex */
+        @keyframes complex {
+            0% {
+                transform: translateX(0) translateY(0) rotate(0deg);
+                background-color: #3498db;
+            }
+            25% {
+                transform: translateX(50px) translateY(-20px) rotate(90deg);
+                background-color: #2ecc71;
+            }
+            50% {
+                transform: translateX(0) translateY(-40px) rotate(180deg);
+                background-color: #e74c3c;
+            }
+            75% {
+                transform: translateX(-50px) translateY(-20px) rotate(270deg);
+                background-color: #f39c12;
+            }
+            100% {
+                transform: translateX(0) translateY(0) rotate(360deg);
+                background-color: #3498db;
+            }
+        }
+
+        .complex {
+            animation: complex 4s ease-in-out infinite;
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Фаза 2: Тестирование @keyframes</h1>
+
+        <div class="info">
+            <strong>Примечание:</strong> Эти анимации будут работать только после реализации runtime анимаций (Фаза 7).
+            Сейчас тестируется только парсинг @keyframes правил.
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 1: fadeIn (from/to)</h2>
+            <div class="code">@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }</div>
+            <div class="animation-box fade-in"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: slideIn (0%, 50%, 100%)</h2>
+            <div class="code">@keyframes slideIn { 0% { transform: translateX(-100px); } 50% { opacity: 0.5; } 100% { transform: translateX(0); } }</div>
+            <div class="animation-box slide-in"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: bounce (infinite)</h2>
+            <div class="code">@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }</div>
+            <div class="animation-box bounce"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: rotate (infinite)</h2>
+            <div class="code">@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</div>
+            <div class="animation-box rotate"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: scale (infinite)</h2>
+            <div class="code">@keyframes scale { 0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1); } }</div>
+            <div class="animation-box scale"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 6: colorChange (multiple colors)</h2>
+            <div class="code">@keyframes colorChange { 0% { background-color: #3498db; } 33% { background-color: #2ecc71; } 66% { background-color: #e74c3c; } 100% { background-color: #3498db; } }</div>
+            <div class="animation-box color-change"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 7: complex (multiple properties)</h2>
+            <div class="code">@keyframes complex { 0% { transform: translateX(0) rotate(0deg); background-color: #3498db; } ... }</div>
+            <div class="animation-box complex"></div>
+        </div>
+    </div>
+</body>
+</html>
+

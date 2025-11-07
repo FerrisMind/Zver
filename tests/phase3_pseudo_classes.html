@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 3: Тест псевдоклассов</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Структурные псевдоклассы */
+        
+        /* :first-child */
+        .list-first li:first-child {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* :last-child */
+        .list-last li:last-child {
+            background-color: #e74c3c;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* :nth-child(2) */
+        .list-nth li:nth-child(2) {
+            background-color: #2ecc71;
+            color: white;
+        }
+
+        /* :nth-child(odd) */
+        .list-odd li:nth-child(odd) {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        /* :nth-child(even) */
+        .list-even li:nth-child(even) {
+            background-color: #9b59b6;
+            color: white;
+        }
+
+        /* :nth-child(3n) */
+        .list-3n li:nth-child(3n) {
+            background-color: #1abc9c;
+            color: white;
+        }
+
+        /* :only-child */
+        .only-child-test :only-child {
+            background-color: #e67e22;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        /* :first-of-type */
+        .first-of-type-test p:first-of-type {
+            background-color: #34495e;
+            color: white;
+            padding: 10px;
+        }
+
+        /* :last-of-type */
+        .last-of-type-test p:last-of-type {
+            background-color: #16a085;
+            color: white;
+            padding: 10px;
+        }
+
+        /* :nth-of-type(2) */
+        .nth-of-type-test p:nth-of-type(2) {
+            background-color: #c0392b;
+            color: white;
+            padding: 10px;
+        }
+
+        /* Псевдоклассы состояния */
+        
+        /* :hover */
+        .hover-test {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border: 2px solid #bdc3c7;
+            transition: background-color 0.3s;
+        }
+
+        .hover-test:hover {
+            background-color: #3498db;
+            color: white;
+        }
+
+        /* :focus */
+        .focus-test {
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            outline: none;
+        }
+
+        .focus-test:focus {
+            border-color: #3498db;
+            outline: 2px solid #3498db;
+        }
+
+        /* :active */
+        .active-test {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border: 2px solid #bdc3c7;
+            cursor: pointer;
+        }
+
+        .active-test:active {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        /* :disabled */
+        .disabled-test:disabled {
+            background-color: #bdc3c7;
+            color: #7f8c8d;
+            cursor: not-allowed;
+        }
+
+        /* :checked */
+        .checkbox-test:checked + label {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Фаза 3: Тестирование псевдоклассов</h1>
+
+        <div class="info">
+            <strong>Инструкции:</strong>
+            <ul>
+                <li>Структурные псевдоклассы должны работать сразу после реализации</li>
+                <li>Псевдоклассы состояния (:hover, :focus, :active) требуют интеграции с UI событиями</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 1: :first-child</h2>
+            <div class="code">li:first-child { background-color: #3498db; }</div>
+            <ul class="list-first">
+                <li>Первый элемент (синий)</li>
+                <li>Второй элемент</li>
+                <li>Третий элемент</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: :last-child</h2>
+            <div class="code">li:last-child { background-color: #e74c3c; }</div>
+            <ul class="list-last">
+                <li>Первый элемент</li>
+                <li>Второй элемент</li>
+                <li>Последний элемент (красный)</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: :nth-child(2)</h2>
+            <div class="code">li:nth-child(2) { background-color: #2ecc71; }</div>
+            <ul class="list-nth">
+                <li>Первый элемент</li>
+                <li>Второй элемент (зеленый)</li>
+                <li>Третий элемент</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: :nth-child(odd)</h2>
+            <div class="code">li:nth-child(odd) { background-color: #f39c12; }</div>
+            <ul class="list-odd">
+                <li>Нечетный 1</li>
+                <li>Четный</li>
+                <li>Нечетный 2</li>
+                <li>Четный</li>
+                <li>Нечетный 3</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: :nth-child(even)</h2>
+            <div class="code">li:nth-child(even) { background-color: #9b59b6; }</div>
+            <ul class="list-even">
+                <li>Нечетный</li>
+                <li>Четный 1</li>
+                <li>Нечетный</li>
+                <li>Четный 2</li>
+                <li>Нечетный</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 6: :nth-child(3n)</h2>
+            <div class="code">li:nth-child(3n) { background-color: #1abc9c; }</div>
+            <ul class="list-3n">
+                <li>Элемент 1</li>
+                <li>Элемент 2</li>
+                <li>Элемент 3 (выделен)</li>
+                <li>Элемент 4</li>
+                <li>Элемент 5</li>
+                <li>Элемент 6 (выделен)</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 7: :only-child</h2>
+            <div class="code">:only-child { background-color: #e67e22; }</div>
+            <div class="only-child-test">
+                <div>Единственный дочерний элемент (оранжевый)</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 8: :first-of-type</h2>
+            <div class="code">p:first-of-type { background-color: #34495e; }</div>
+            <div class="first-of-type-test">
+                <p>Первый параграф (темно-синий)</p>
+                <div>Div элемент</div>
+                <p>Второй параграф</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 9: :last-of-type</h2>
+            <div class="code">p:last-of-type { background-color: #16a085; }</div>
+            <div class="last-of-type-test">
+                <p>Первый параграф</p>
+                <div>Div элемент</div>
+                <p>Последний параграф (бирюзовый)</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 10: :nth-of-type(2)</h2>
+            <div class="code">p:nth-of-type(2) { background-color: #c0392b; }</div>
+            <div class="nth-of-type-test">
+                <p>Первый параграф</p>
+                <div>Div элемент</div>
+                <p>Второй параграф (красный)</p>
+                <p>Третий параграф</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 11: :hover</h2>
+            <div class="code">.hover-test:hover { background-color: #3498db; }</div>
+            <div class="hover-test">
+                Наведите курсор на этот блок (должен стать синим)
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 12: :focus</h2>
+            <div class="code">.focus-test:focus { border-color: #3498db; }</div>
+            <input type="text" class="focus-test" placeholder="Кликните для фокуса" />
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 13: :active</h2>
+            <div class="code">.active-test:active { background-color: #e74c3c; }</div>
+            <div class="active-test">
+                Зажмите и удерживайте этот блок (должен стать красным)
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 14: :disabled</h2>
+            <div class="code">.disabled-test:disabled { background-color: #bdc3c7; }</div>
+            <input type="text" class="disabled-test" value="Отключенное поле" disabled />
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 15: :checked</h2>
+            <div class="code">.checkbox-test:checked + label { color: #2ecc71; }</div>
+            <input type="checkbox" class="checkbox-test" id="test-checkbox" />
+            <label for="test-checkbox">Отметьте чекбокс (текст станет зеленым)</label>
+        </div>
+    </div>
+</body>
+</html>
+

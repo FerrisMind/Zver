@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Фаза 5: Тест каскада и наследования</title>
+    <style>
+        /* User-Agent стили должны применяться первыми */
+        /* В реальности они будут встроены в движок */
+
+        /* Author styles */
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+
+        /* Наследуемые свойства */
+        .parent {
+            color: #3498db;
+            font-size: 20px;
+            font-weight: bold;
+            line-height: 1.8;
+            text-align: center;
+        }
+
+        /* Дочерний элемент наследует цвет, font-size, line-height, text-align */
+        .child {
+            /* Наследует все свойства от .parent */
+        }
+
+        /* Переопределение наследуемого свойства */
+        .child-override {
+            color: #e74c3c; /* Переопределяет цвет родителя */
+        }
+
+        /* Специфичность */
+        .specificity-test {
+            color: blue; /* Специфичность: 0,0,1,0 */
+        }
+
+        div.specificity-test {
+            color: green; /* Специфичность: 0,0,1,1 - выше */
+        }
+
+        #specificity-id {
+            color: red; /* Специфичность: 0,1,0,0 - самая высокая */
+        }
+
+        /* !important */
+        .important-test {
+            color: blue !important;
+        }
+
+        .important-override {
+            color: red; /* Не переопределит !important */
+        }
+
+        /* Inline стили (должны иметь самую высокую специфичность, кроме !important) */
+        .inline-test {
+            color: green;
+        }
+
+        /* Каскад: порядок правил */
+        .cascade-order-1 {
+            color: red;
+        }
+
+        .cascade-order-2 {
+            color: blue; /* Позднее правило побеждает при одинаковой специфичности */
+        }
+
+        /* Наследование разных типов свойств */
+        .inheritance-parent {
+            /* Наследуемые */
+            color: #2ecc71;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            line-height: 2;
+            text-align: right;
+            text-decoration: underline;
+            
+            /* Ненаследуемые */
+            background-color: #ecf0f1;
+            border: 2px solid #3498db;
+            padding: 20px;
+            margin: 20px;
+            width: 300px;
+        }
+
+        .inheritance-child {
+            /* Наследует: color, font-family, font-size, line-height, text-align, text-decoration */
+            /* НЕ наследует: background-color, border, padding, margin, width */
+        }
+
+        /* Множественное наследование */
+        .grandparent {
+            color: #9b59b6;
+            font-size: 24px;
+        }
+
+        .parent-inherit {
+            color: #3498db; /* Переопределяет grandparent */
+            font-size: inherit; /* Явно наследует от grandparent (24px) */
+        }
+
+        .child-inherit {
+            /* Наследует color от parent (#3498db), font-size от parent (24px) */
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <h1>Фаза 5: Тестирование каскада и наследования</h1>
+
+        <div class="test-section">
+            <h2>Тест 1: Базовое наследование</h2>
+            <div class="code">
+                .parent { color: #3498db; font-size: 20px; font-weight: bold; }<br>
+                .child { /* наследует все от parent */ }
+            </div>
+            <div class="parent">
+                Родительский элемент
+                <div class="child">Дочерний элемент (наследует цвет, размер, жирность)</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 2: Переопределение наследуемого свойства</h2>
+            <div class="code">
+                .parent { color: #3498db; }<br>
+                .child-override { color: #e74c3c; }
+            </div>
+            <div class="parent">
+                Родительский элемент (синий)
+                <div class="child-override">Дочерний элемент (красный, переопределяет цвет)</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 3: Специфичность селекторов</h2>
+            <div class="code">
+                .specificity-test { color: blue; } /* 0,0,1,0 */<br>
+                div.specificity-test { color: green; } /* 0,0,1,1 */<br>
+                #specificity-id { color: red; } /* 0,1,0,0 */
+            </div>
+            <div class="specificity-test">Класс (синий)</div>
+            <div class="specificity-test">Класс + тег (зеленый)</div>
+            <div class="specificity-test" id="specificity-id">ID (красный, самая высокая специфичность)</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 4: !important</h2>
+            <div class="code">
+                .important-test { color: blue !important; }<br>
+                .important-override { color: red; }
+            </div>
+            <div class="important-test important-override">
+                Этот текст должен быть синим (из-за !important), несмотря на более позднее правило
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 5: Inline стили</h2>
+            <div class="code">
+                .inline-test { color: green; }<br>
+                &lt;div class="inline-test" style="color: orange;"&gt;
+            </div>
+            <div class="inline-test" style="color: orange;">
+                Этот текст должен быть оранжевым (inline стиль имеет более высокую специфичность)
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 6: Порядок правил (каскад)</h2>
+            <div class="code">
+                .cascade-order-1 { color: red; }<br>
+                .cascade-order-2 { color: blue; } /* Позднее правило побеждает */
+            </div>
+            <div class="cascade-order-1 cascade-order-2">
+                Этот текст должен быть синим (позднее правило при одинаковой специфичности)
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 7: Наследуемые vs ненаследуемые свойства</h2>
+            <div class="code">
+                .inheritance-parent {<br>
+                &nbsp;&nbsp;color: #2ecc71; /* наследуемое */<br>
+                &nbsp;&nbsp;background-color: #ecf0f1; /* ненаследуемое */<br>
+                &nbsp;&nbsp;border: 2px solid #3498db; /* ненаследуемое */<br>
+                &nbsp;&nbsp;padding: 20px; /* ненаследуемое */<br>
+                }
+            </div>
+            <div class="inheritance-parent">
+                Родительский элемент (зеленый текст, серый фон, синяя рамка, отступы)
+                <div class="inheritance-child">
+                    Дочерний элемент (наследует зеленый цвет, НЕ наследует фон, рамку, отступы)
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 8: Множественное наследование</h2>
+            <div class="code">
+                .grandparent { color: #9b59b6; font-size: 24px; }<br>
+                .parent-inherit { color: #3498db; font-size: inherit; }<br>
+                .child-inherit { /* наследует от parent */ }
+            </div>
+            <div class="grandparent">
+                Дедушка (фиолетовый, 24px)
+                <div class="parent-inherit">
+                    Родитель (синий, 24px через inherit)
+                    <div class="child-inherit">
+                        Ребенок (синий от parent, 24px от parent)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>Тест 9: User-Agent стили</h2>
+            <div class="info">
+                <p>User-Agent стили должны применяться первыми (до author styles).</p>
+                <p>Например, элементы &lt;h1&gt; должны иметь больший размер шрифта по умолчанию.</p>
+                <h1>Заголовок H1 (должен быть больше обычного текста)</h1>
+                <h2>Заголовок H2</h2>
+                <h3>Заголовок H3</h3>
+                <p>Обычный параграф</p>
+                <ul>
+                    <li>Элемент списка 1</li>
+                    <li>Элемент списка 2</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

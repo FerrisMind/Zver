@@ -35,7 +35,14 @@ impl NetworkEngine {
             .tcp_nodelay(true)
             .tcp_keepalive(Duration::from_secs(60))
             .build()
-            .expect("failed to build reqwest client");
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to build reqwest client with full config: {}", e);
+                eprintln!("Falling back to default client configuration");
+                reqwest::Client::builder()
+                    .timeout(Duration::from_secs(30))
+                    .build()
+                    .expect("Failed to build even basic HTTP client - this is a critical error")
+            });
 
         Self {
             cache: HashMap::new(),

@@ -202,30 +202,35 @@ fn parse_box_shorthand(
         parser.skip_whitespace();
     }
 
-    match parts.len() {
-        1 => parts.resize(4, parts[0].clone()),
-        2 => {
-            parts.push(parts[0].clone());
-            parts.push(parts[1].clone());
-        }
-        3 => parts.push(parts[1].clone()),
-        4 => {}
-        _ => {
-            return Err(PropertyParseError::TooManyComponents(prefix.into()));
-        }
-    }
+    // Расширяем shorthand по CSS-правилам: 1 значение -> все 4, 2 -> top/bottom + left/right, 3 -> top + left/right + bottom
+    let expanded = match parts.len() {
+        1 => vec![parts[0].clone(); 4],
+        2 => vec![
+            parts[0].clone(),
+            parts[1].clone(),
+            parts[0].clone(),
+            parts[1].clone(),
+        ],
+        3 => vec![
+            parts[0].clone(),
+            parts[1].clone(),
+            parts[2].clone(),
+            parts[1].clone(),
+        ],
+        4 => parts,
+        _ => return Err(PropertyParseError::TooManyComponents(prefix.into())),
+    };
 
-    let mut declarations = Vec::with_capacity(4);
     let suffixes = ["-top", "-right", "-bottom", "-left"];
-    for (idx, suffix) in suffixes.iter().enumerate() {
-        declarations.push(Property {
+    Ok(expanded
+        .into_iter()
+        .zip(suffixes)
+        .map(|(value, suffix)| Property {
             name: format!("{prefix}{suffix}"),
-            value: parts[idx].clone(),
+            value,
             important: false,
-        });
-    }
-
-    Ok(declarations)
+        })
+        .collect())
 }
 
 fn parse_length_or_keyword(value: &str, allow_auto: bool) -> Result<String, PropertyParseError> {
@@ -258,37 +263,37 @@ fn parse_length_component(
     parser: &mut Parser<'_, '_>,
     allow_auto: bool,
 ) -> Result<String, PropertyParseError> {
-    match parser.next().cloned() {
+    let token = parser.next().cloned();
+
+    match token {
         Ok(Token::Dimension { value, unit, .. }) => {
             let unit_lower = unit.as_ref().to_ascii_lowercase();
-            match unit_lower.as_str() {
-                "px" | "em" | "vh" | "vw" => Ok(format!("{}{}", format_float(value), unit_lower)),
-                _ => Err(PropertyParseError::UnsupportedUnit(unit_lower)),
+            if matches!(unit_lower.as_str(), "px" | "em" | "vh" | "vw") {
+                Ok(format!("{}{}", format_float(value), unit_lower))
+            } else {
+                Err(PropertyParseError::UnsupportedUnit(unit_lower))
             }
         }
         Ok(Token::Percentage { unit_value, .. }) => {
-            let percent = unit_value * 100.0;
-            Ok(format!("{}%", format_float(percent)))
+            Ok(format!("{}%", format_float(unit_value * 100.0)))
         }
-        Ok(Token::Number { value, .. }) => {
-            if value.abs() <= f32::EPSILON {
-                Ok("0".to_string())
-            } else {
-                Err(PropertyParseError::InvalidValue(
-                    "number".into(),
-                    format_float(value),
-                ))
-            }
-        }
+        Ok(Token::Number { value, .. }) if value.abs() <= f32::EPSILON => Ok("0".to_string()),
+        Ok(Token::Number { value, .. }) => Err(PropertyParseError::InvalidValue(
+            "number".into(),
+            format_float(value),
+        )),
         Ok(Token::Ident(ident)) => {
             let ident_lower = ident.as_ref().to_ascii_lowercase();
-            match ident_lower.as_str() {
-                "inherit" | "initial" | "unset" => Ok(ident_lower),
-                "auto" if allow_auto => Ok(ident_lower),
-                _ => Err(PropertyParseError::InvalidValue(
+            let is_valid = matches!(ident_lower.as_str(), "inherit" | "initial" | "unset")
+                || (allow_auto && ident_lower == "auto");
+
+            if is_valid {
+                Ok(ident_lower)
+            } else {
+                Err(PropertyParseError::InvalidValue(
                     "identifier".into(),
                     ident_lower,
-                )),
+                ))
             }
         }
         Ok(other) => Err(PropertyParseError::InvalidValue(
