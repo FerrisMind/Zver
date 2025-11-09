@@ -14,9 +14,30 @@
 - WebAssembly интеграция
 - Мобильная оптимизация
 
+## [0.7.0-alpha.1] - 2025-11-09
+
+### Добавлено
+
+- Windows приложение с конфигурацией подсистемы GUI (`feat(build): Add Windows application configuration and icon support`).
+- Встраивание иконок в exe-файл через winresource (`feat(build): Add Windows application configuration and icon support`).
+- Windows Registry интеграция через winreg (`feat(dependencies): Add winreg for Windows registry interaction`).
+- Улучшения интерфейса адресной строки и DevTools с текстовыми подсказками и отзывчивым расположением (`feat(browser): Enhance address bar and DevTools UI with refined interactions`).
+- Интеграция иконок egui-phosphor для улучшенной поддержки иконографии (`feat(icons): Integrate egui-phosphor for enhanced icon support`).
+- Обновленный интерфейс браузера с иконками Phosphor и адаптивной адресной строкой (`feat(browser): Enhance browser UI with Phosphor icons and dynamic address bar`).
+- Шрифт иконок Phosphor для элементов пользовательского интерфейса (`feat(assets): Add Phosphor icon font for project UI`).
+
+### Изменено
+
+- Рефакторинг DOM модуля с комплексной модуляризацией и разделением на логические компоненты (`refactor(dom): Restructure DOM module with comprehensive modularization`).
+
+### Исправлено
+
+- Очистка репозитория и обновление changelog для лучшей организации проекта (`chore(project): Clean repository and update changelog for 0.6.0-alpha.1 release`).
+
 ## [0.6.0-alpha.1] - 2025-11-07
 
 ### Добавлено
+
 - Полноценный браузерный интерфейс с мультивкладками в `zver-egui` (`feat(browser): Implement comprehensive browser interface with multi-tab support`).
 - Расширенная панель DevTools в `zver-egui` с вкладками (Elements/Console/Network/Performance) и докингом справа (`feat(zver-egui): Enhance DevTools panel layout and positioning`).
 - Улучшенный рендеринг layout и debug-визуализации в демо-приложении (`feat(zver-egui): Enhance layout rendering and debug visualization`, `feat(zver-egui): Enhance UI rendering and layout visualization`).
@@ -25,6 +46,7 @@
 - Интеграция Boa JavaScript engine и обновление зависимостей (`feat(project): Integrate Boa JavaScript engine and enhance project dependencies`).
 
 ### Изменено
+
 - Улучшен DOM-парсинг и операции (`refactor(dom): Enhance DOM parsing and querying capabilities`).
 - Реструктурирован CSS-модуль и улучшен парсинг (`refactor(css): Restructure CSS module and enhance parsing capabilities`).
 - Улучшен загрузчик ресурсов (`refactor(resource_loader): Improve resource loading initialization and error handling`).
@@ -32,19 +54,19 @@
 - Консолидация оптимизаций DOM/CSS/layout (коммит `42f6eca`).
 
 ### Удалено
-- Временные экспериментальные файлы и резервные копии тестов, не являющиеся частью публичного API
-  (`chore: clean repository structure and gitignore`).
+
+- Временные экспериментальные файлы и резервные копии тестов, не являющиеся частью публичного API (`chore: clean repository structure and gitignore`).
 
 ### Исправлено
-- Очистка репозитория и `.gitignore` от артефактов сборки и временных файлов
-  (`chore: clean repository structure and gitignore`).
+
+- Очистка репозитория и `.gitignore` от артефактов сборки и временных файлов (`chore: clean repository structure and gitignore`).
 
 ## [0.1.0] - 2024-11-06
 
 ### Добавлено
 
 #### Основная функциональность
-- **Браузерный движок Zver** - основная библиотека с модульной архитектурой
+
 - **GUI демо приложение** на базе egui для визуализации и тестирования
 - **Асинхронная архитектура** на базе Tokio для неблокирующих операций
 
