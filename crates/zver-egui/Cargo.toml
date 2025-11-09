@@ -9,3 +9,4 @@ egui = "0.33"
 zver = { path = "../zver" }
 tokio = { version = "1.48", features = ["rt", "rt-multi-thread", "macros"] }
 egui-phosphor = { version = "0.10.0", default-features = false, features = ["regular"] }
+winreg = "0.55.0"
