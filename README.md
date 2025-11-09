@@ -186,7 +186,7 @@ Zver использует следующие отличные библиотек
 - [Serde](https://crates.io/crates/serde) - Сериализация/десериализация
 - [Log](https://crates.io/crates/log) - Логирование
 - [Env Logger](https://crates.io/crates/env_logger) - Конфигурируемое логирование
-- [parser](https://crates.io/crates/parser) - HTML парсинг
+- [scraper](https://crates.io/crates/scraper) - HTML парсинг
 
 ---
 
