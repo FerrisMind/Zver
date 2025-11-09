@@ -15,6 +15,8 @@ fn main() -> eframe::Result {
     let icon_data = eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon.png")[..])
         .unwrap_or_default();
     
+    let title = format!("Zver Browser v{}", env!("CARGO_PKG_VERSION"));
+    
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_icon(std::sync::Arc::new(icon_data)),
@@ -22,7 +24,7 @@ fn main() -> eframe::Result {
     };
     
     eframe::run_native(
-        "Zver Browser",
+        &title,
         native_options,
         Box::new(|cc| {
             install(&cc.egui_ctx);

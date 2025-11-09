@@ -109,7 +109,7 @@ HTML → DOM → CSS Styling → Layout → Render → Display
 
 ### ✅ Реализовано
 
-- Базовый HTML парсинг через kuchikiki
+- Базовый HTML парсинг через parser
 - CSS парсинг с поддержкой селекторов (cssparser + selectors)
 - Layout движок с Flexbox/Grid поддержкой (Taffy)
 - JavaScript исполнение (Boa Engine)
@@ -179,6 +179,14 @@ Zver использует следующие отличные библиотек
 - [boa_engine](https://crates.io/crates/boa_engine) - JavaScript движок
 - [wgpu](https://crates.io/crates/wgpu) - GPU рендеринг
 - [egui](https://crates.io/crates/egui) - GUI фреймворк для демо
+- [tokio](https://crates.io/crates/tokio) - Асинхронный runtime
+- [reqwest](https://crates.io/crates/reqwest) - HTTP клиент
+- [fontdue](https://crates.io/crates/fontdue) - Рендеринг шрифтов
+- [Rayon](https://crates.io/crates/rayon) - Параллельные вычисления
+- [Serde](https://crates.io/crates/serde) - Сериализация/десериализация
+- [Log](https://crates.io/crates/log) - Логирование
+- [Env Logger](https://crates.io/crates/env_logger) - Конфигурируемое логирование
+- [parser](https://crates.io/crates/parser) - HTML парсинг
 
 ---
 
