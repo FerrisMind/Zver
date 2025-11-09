@@ -64,7 +64,7 @@ pub struct StyleEngine {
     pub keyframes: HashMap<String, animations::KeyframesDefinition>,
     /// @font-face определения (Фаза 2)
     pub fonts: Vec<fonts::LoadedFont>,
-    
+
     // === Viewport для media queries ===
     /// Ширина viewport для @media queries (по умолчанию 1024px)
     pub viewport_width: f32,
@@ -350,7 +350,11 @@ impl StyleEngine {
 
         // Применяем правила из @media queries
         for media_rule in &self.media_rules {
-            if media_rule.applies_to(self.viewport_width, self.viewport_height, self.media_type.clone()) {
+            if media_rule.applies_to(
+                self.viewport_width,
+                self.viewport_height,
+                self.media_type.clone(),
+            ) {
                 for rule in &media_rule.rules {
                     if let Some(compiled) = self.selector_cache.get(&rule.selector_text)
                         && let Some(specificity) = compiled.matches(&adapter)

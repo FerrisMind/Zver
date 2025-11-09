@@ -31,8 +31,12 @@ pub fn init_document(
                     let ids = dom.query_selector(selector_str.to_std_string_escaped().as_str());
                     if let Some(&first_id) = ids.first() {
                         drop(dom); // Release read lock before creating object
-                        let element =
-                            create_element_object(context, first_id, dom_ref.clone(), event_registry.clone());
+                        let element = create_element_object(
+                            context,
+                            first_id,
+                            dom_ref.clone(),
+                            event_registry.clone(),
+                        );
                         return Ok(JsValue::from(element));
                     }
                 }
@@ -52,11 +56,16 @@ pub fn init_document(
                 if let Some(id_js) = args.first()
                     && let Some(id_str) = id_js.as_string()
                     && let Ok(dom) = dom_ref.try_read()
-                    && let Some(node_id) = dom.get_element_by_id(id_str.to_std_string_escaped().as_str())
+                    && let Some(node_id) =
+                        dom.get_element_by_id(id_str.to_std_string_escaped().as_str())
                 {
                     drop(dom); // Release read lock
-                    let element =
-                        create_element_object(context, node_id, dom_ref.clone(), event_registry.clone());
+                    let element = create_element_object(
+                        context,
+                        node_id,
+                        dom_ref.clone(),
+                        event_registry.clone(),
+                    );
                     return Ok(JsValue::from(element));
                 }
                 Ok(JsValue::null())

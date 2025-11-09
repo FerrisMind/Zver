@@ -1,4 +1,6 @@
-use boa_engine::{Context, JsValue, NativeFunction, js_string, object::ObjectInitializer, property::Attribute};
+use boa_engine::{
+    Context, JsValue, NativeFunction, js_string, object::ObjectInitializer, property::Attribute,
+};
 
 /// Инициализирует глобальный объект console с методами log, error, warn
 pub fn init_console(context: &mut Context) {

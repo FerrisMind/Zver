@@ -5,6 +5,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Rust](https://img.shields.io/badge/rust-2024-orange.svg)
 ![Status](https://img.shields.io/badge/status-в%20разработке-yellow.svg)
+![Animated demo](.github/zver.gif)
 
 ## 🚀 Возможности
 

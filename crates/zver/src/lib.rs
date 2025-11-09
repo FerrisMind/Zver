@@ -59,6 +59,16 @@ pub struct Zver {
 }
 
 impl Zver {
+    /// Выполняет произвольный JavaScript-код в контексте текущего движка.
+    ///
+    /// Синхронная обёртка над [`JSEngine::execute()`], использующая существующий RwLock.
+    /// Не изменяет публичные контракты и модель блокировок.
+    pub fn eval_js(&self, code: &str) -> Result<crate::js::JSValue, String> {
+        // Используем существующий js: Arc<RwLock<JSEngine>>
+        // Без изменения lock ordering: JS — самый высокий уровень.
+        let mut js_engine = self.js.blocking_write();
+        js_engine.execute(code).map_err(|e| e.to_string())
+    }
     /// Создаёт новый экземпляр браузерного движка с настройками по умолчанию.
     ///
     /// # Возвращает
@@ -172,19 +182,21 @@ impl Zver {
             let _span = tracing::debug_span!("execute_js").entered();
             let dom_snapshot = self.dom.read().await.clone();
             let mut js_engine = self.js.write().await;
-            
+
             // Reset JavaScript context to prevent "duplicate lexical declaration" errors
             // This is necessary because const/let declarations cannot be redeclared in the same scope
             js_engine.reset_context();
-            
+
             let mut js_content = String::new();
             extract_js_from_dom(&dom_snapshot, dom_snapshot.root, &mut js_content);
 
             if !js_content.is_empty() {
-                tracing::debug!("Executing JavaScript code ({} chars): {}", 
-                              js_content.len(), 
-                              &js_content[..js_content.len().min(100)]);
-                              
+                tracing::debug!(
+                    "Executing JavaScript code ({} chars): {}",
+                    js_content.len(),
+                    &js_content[..js_content.len().min(100)]
+                );
+
                 if let Err(e) = js_engine.execute(&js_content) {
                     eprintln!("JavaScript execution error: {}", e);
                 }

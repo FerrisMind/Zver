@@ -324,7 +324,10 @@ impl FontFace {
                     match parse_font_sources(input) {
                         Ok(s) => {
                             sources = s;
-                            tracing::trace!("parse_font_face_block: src успешно распарсен, найдено {} источников", sources.len());
+                            tracing::trace!(
+                                "parse_font_face_block: src успешно распарсен, найдено {} источников",
+                                sources.len()
+                            );
                         }
                         Err(e) => {
                             tracing::error!("parse_font_face_block: ошибка парсинга src: {:?}", e);
@@ -359,10 +362,16 @@ impl FontFace {
                     match parse_unicode_ranges(input) {
                         Ok(ranges) => {
                             unicode_ranges = ranges;
-                            tracing::trace!("parse_font_face_block: unicode-range успешно распарсен, найдено {} диапазонов", unicode_ranges.len());
+                            tracing::trace!(
+                                "parse_font_face_block: unicode-range успешно распарсен, найдено {} диапазонов",
+                                unicode_ranges.len()
+                            );
                         }
                         Err(e) => {
-                            tracing::error!("parse_font_face_block: ошибка парсинга unicode-range: {:?}", e);
+                            tracing::error!(
+                                "parse_font_face_block: ошибка парсинга unicode-range: {:?}",
+                                e
+                            );
                             return Err(e);
                         }
                     }
@@ -456,29 +465,30 @@ fn parse_font_sources<'i, 't>(
             let function_name = input.expect_function().map(|s| s.to_string())?;
             tracing::trace!("parse_font_sources: нашли функцию '{}'", function_name);
 
-            let font_source = input.parse_nested_block(|input| -> Result<FontSource, ParseError<'i, ()>> {
-                match function_name.to_ascii_lowercase().as_str() {
-                    "url" => {
-                        let url = match input.next()? {
-                            Token::QuotedString(s) => s.to_string(),
-                            Token::UnquotedUrl(s) => s.to_string(),
-                            _ => return Err(input.new_custom_error(())),
-                        };
+            let font_source =
+                input.parse_nested_block(|input| -> Result<FontSource, ParseError<'i, ()>> {
+                    match function_name.to_ascii_lowercase().as_str() {
+                        "url" => {
+                            let url = match input.next()? {
+                                Token::QuotedString(s) => s.to_string(),
+                                Token::UnquotedUrl(s) => s.to_string(),
+                                _ => return Err(input.new_custom_error(())),
+                            };
 
-                        // НЕ парсим format() здесь - он снаружи url()
-                        Ok(FontSource::Url { url, format: None })
+                            // НЕ парсим format() здесь - он снаружи url()
+                            Ok(FontSource::Url { url, format: None })
+                        }
+                        "local" => {
+                            let name = match input.next()? {
+                                Token::QuotedString(s) => s.to_string(),
+                                Token::Ident(s) => s.to_string(),
+                                _ => return Err(input.new_custom_error(())),
+                            };
+                            Ok(FontSource::Local { name })
+                        }
+                        _ => Err(input.new_custom_error(())),
                     }
-                    "local" => {
-                        let name = match input.next()? {
-                            Token::QuotedString(s) => s.to_string(),
-                            Token::Ident(s) => s.to_string(),
-                            _ => return Err(input.new_custom_error(())),
-                        };
-                        Ok(FontSource::Local { name })
-                    }
-                    _ => Err(input.new_custom_error(())),
-                }
-            })?;
+                })?;
 
             // Теперь парсим format() СНАРУЖИ url()
             input.skip_whitespace();
@@ -510,7 +520,10 @@ fn parse_font_sources<'i, 't>(
             // Обновляем format в font_source если это Url
             let final_source = match font_source {
                 FontSource::Url { url, .. } => {
-                    tracing::trace!("parse_font_sources: создали Url источник с format={:?}", format);
+                    tracing::trace!(
+                        "parse_font_sources: создали Url источник с format={:?}",
+                        format
+                    );
                     FontSource::Url { url, format }
                 }
                 other => {
@@ -540,12 +553,19 @@ fn parse_font_sources<'i, 't>(
             }
             Err(e) if sources.is_empty() => {
                 // Не удалось распарсить ни одного источника
-                tracing::error!("parse_font_sources: не удалось распарсить ни одного источника: {:?}", e);
+                tracing::error!(
+                    "parse_font_sources: не удалось распарсить ни одного источника: {:?}",
+                    e
+                );
                 return Err(input.new_custom_error(()));
             }
             Err(e) => {
                 // Не удалось распарсить следующий источник, но уже есть предыдущие
-                tracing::trace!("parse_font_sources: не удалось распарсить следующий источник (уже есть {}): {:?}", sources.len(), e);
+                tracing::trace!(
+                    "parse_font_sources: не удалось распарсить следующий источник (уже есть {}): {:?}",
+                    sources.len(),
+                    e
+                );
                 break;
             }
         }
@@ -555,7 +575,10 @@ fn parse_font_sources<'i, 't>(
         tracing::error!("parse_font_sources: список источников пуст");
         Err(input.new_custom_error(()))
     } else {
-        tracing::trace!("parse_font_sources: успешно, всего источников: {}", sources.len());
+        tracing::trace!(
+            "parse_font_sources: успешно, всего источников: {}",
+            sources.len()
+        );
         Ok(sources)
     }
 }
@@ -565,15 +588,15 @@ fn parse_unicode_ranges<'i, 't>(
     input: &mut Parser<'i, 't>,
 ) -> Result<Vec<UnicodeRange>, ParseError<'i, ()>> {
     let mut ranges = Vec::new();
-    
+
     loop {
         input.skip_whitespace();
-        
+
         // Try to parse one unicode-range
         let range: Result<UnicodeRange, ParseError<'i, ()>> = input.try_parse(|input| {
             // Read 'U' identifier
             let first_token = input.next();
-            
+
             match first_token {
                 Ok(Token::Ident(u)) if u.as_ref().eq_ignore_ascii_case("U") => {
                     // Found 'U' prefix
@@ -582,23 +605,30 @@ fn parse_unicode_ranges<'i, 't>(
                     return Err(input.new_custom_error::<(), ()>(()));
                 }
             }
-            
+
             // Read +XXXX (Number with + sign)
             let next_token = input.next();
-            
+
             let start = match next_token {
-                Ok(Token::Number { has_sign: true, int_value: Some(n), .. }) if *n >= 0 => {
-                    *n as u32
-                }
+                Ok(Token::Number {
+                    has_sign: true,
+                    int_value: Some(n),
+                    ..
+                }) if *n >= 0 => *n as u32,
                 _ => {
                     return Err(input.new_custom_error::<(), ()>(()));
                 }
             };
-            
+
             // Check for range: '-YYYY'
             let dash_token = input.next();
-            
-            if let Ok(Token::Number { has_sign: true, int_value: Some(n), .. }) = dash_token {
+
+            if let Ok(Token::Number {
+                has_sign: true,
+                int_value: Some(n),
+                ..
+            }) = dash_token
+            {
                 // Range: U+XXXX-YYYY (tokenized as U, +XXXX, -YYYY)
                 let end: i32 = if *n < 0 {
                     (*n).unsigned_abs() as i32
@@ -611,11 +641,11 @@ fn parse_unicode_ranges<'i, 't>(
                 Ok(UnicodeRange::new(start, start))
             }
         });
-        
+
         match range {
             Ok(r) => {
                 ranges.push(r);
-                
+
                 // Check for comma separator
                 input.skip_whitespace();
                 if input.try_parse(|i| i.expect_comma()).is_err() {
@@ -630,7 +660,7 @@ fn parse_unicode_ranges<'i, 't>(
             }
         }
     }
-    
+
     if ranges.is_empty() {
         Err(input.new_custom_error::<(), ()>(()))
     } else {

@@ -1,4 +1,6 @@
-use boa_engine::{Context, JsValue, NativeFunction, js_string, object::ObjectInitializer, property::Attribute};
+use boa_engine::{
+    Context, JsValue, NativeFunction, js_string, object::ObjectInitializer, property::Attribute,
+};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -243,12 +245,7 @@ pub fn create_element_object(
                         .and_then(|v| v.as_boolean())
                         .unwrap_or(false);
 
-                    event_registry.add_listener(
-                        node_id as usize,
-                        event_type,
-                        callback_code,
-                        once,
-                    );
+                    event_registry.add_listener(node_id as usize, event_type, callback_code, once);
 
                     return Ok(JsValue::undefined());
                 }
@@ -285,11 +282,7 @@ pub fn create_element_object(
                         return Ok(JsValue::undefined());
                     };
 
-                    event_registry.remove_listener(
-                        node_id as usize,
-                        &event_type,
-                        &callback_code,
-                    );
+                    event_registry.remove_listener(node_id as usize, &event_type, &callback_code);
 
                     return Ok(JsValue::undefined());
                 }

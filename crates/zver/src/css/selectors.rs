@@ -109,11 +109,7 @@ impl CompiledSelector {
         self.selector_list
             .slice()
             .iter()
-            .filter(|selector| {
-                selector
-                    .pseudo_element()
-                    .is_some_and(&filter)
-            })
+            .filter(|selector| selector.pseudo_element().is_some_and(&filter))
             .filter(|selector| matching::matches_selector(selector, 0, None, element, &mut context))
             .map(|selector| selector.specificity())
             .max()

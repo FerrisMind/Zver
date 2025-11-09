@@ -1,6 +1,6 @@
 //! Unit-тесты для Фазы 3: Псевдоклассы и псевдоэлементы
 
-use zver::css::{selectors::PseudoElement, StyleEngine};
+use zver::css::{StyleEngine, selectors::PseudoElement};
 use zver::dom::{Document, ElementState};
 
 #[tokio::test]
@@ -48,7 +48,6 @@ async fn test_structural_pseudo_classes() {
     );
 }
 
-
 #[tokio::test]
 async fn test_state_pseudo_classes() {
     let html = r#"
@@ -75,11 +74,14 @@ async fn test_state_pseudo_classes() {
     doc.parse_html(html).await.unwrap();
 
     let hover_id = doc.get_element_by_id("hover-btn").unwrap();
-    doc.set_element_state(hover_id, ElementState::HOVER, true).unwrap();
+    doc.set_element_state(hover_id, ElementState::HOVER, true)
+        .unwrap();
     let focus_id = doc.get_element_by_id("focus-btn").unwrap();
-    doc.set_element_state(focus_id, ElementState::FOCUS, true).unwrap();
+    doc.set_element_state(focus_id, ElementState::FOCUS, true)
+        .unwrap();
     let active_id = doc.get_element_by_id("active-btn").unwrap();
-    doc.set_element_state(active_id, ElementState::ACTIVE, true).unwrap();
+    doc.set_element_state(active_id, ElementState::ACTIVE, true)
+        .unwrap();
 
     let mut engine = StyleEngine::new();
     engine.parse_css(css).unwrap();
@@ -111,7 +113,6 @@ async fn test_state_pseudo_classes() {
         ":checked should respond to the attribute"
     );
 }
-
 
 #[tokio::test]
 async fn test_pseudo_elements() {
@@ -166,7 +167,9 @@ async fn test_pseudo_elements() {
         .pseudo_child_id(banner_id, PseudoElement::Before)
         .expect("missing ::before node");
     assert_eq!(
-        doc.nodes.get(&before_node).and_then(|node| node.text_content.as_deref()),
+        doc.nodes
+            .get(&before_node)
+            .and_then(|node| node.text_content.as_deref()),
         Some("[[")
     );
 
@@ -174,11 +177,12 @@ async fn test_pseudo_elements() {
         .pseudo_child_id(banner_id, PseudoElement::After)
         .expect("missing ::after node");
     assert_eq!(
-        doc.nodes.get(&after_node).and_then(|node| node.text_content.as_deref()),
+        doc.nodes
+            .get(&after_node)
+            .and_then(|node| node.text_content.as_deref()),
         Some("]]")
     );
 }
-
 
 #[tokio::test]
 async fn test_nth_child_formula() {
@@ -227,7 +231,6 @@ async fn test_nth_child_formula() {
     );
 }
 
-
 #[tokio::test]
 async fn test_pseudo_class_combination() {
     let html = r#"
@@ -251,10 +254,13 @@ async fn test_pseudo_class_combination() {
     doc.parse_html(html).await.unwrap();
 
     let first_id = doc.get_element_by_id("combo-first").unwrap();
-    doc.set_element_state(first_id, ElementState::HOVER, true).unwrap();
+    doc.set_element_state(first_id, ElementState::HOVER, true)
+        .unwrap();
     let input_id = doc.get_element_by_id("combo-input").unwrap();
-    doc.set_element_state(input_id, ElementState::FOCUS, true).unwrap();
-    doc.set_element_state(input_id, ElementState::ACTIVE, true).unwrap();
+    doc.set_element_state(input_id, ElementState::FOCUS, true)
+        .unwrap();
+    doc.set_element_state(input_id, ElementState::ACTIVE, true)
+        .unwrap();
 
     let mut engine = StyleEngine::new();
     engine.parse_css(css).unwrap();
@@ -271,7 +277,6 @@ async fn test_pseudo_class_combination() {
         ":focus:active should require both dynamic states"
     );
 }
-
 
 #[tokio::test]
 async fn test_structural_pseudo_application() {
@@ -341,11 +346,15 @@ async fn test_pseudo_element_nodes() {
         .get(&banner_id)
         .expect("missing pseudo styles");
     assert_eq!(
-        pseudo_styles.get(&PseudoElement::Before).map(|style| style.content.as_str()),
+        pseudo_styles
+            .get(&PseudoElement::Before)
+            .map(|style| style.content.as_str()),
         Some("<-")
     );
     assert_eq!(
-        pseudo_styles.get(&PseudoElement::After).map(|style| style.content.as_str()),
+        pseudo_styles
+            .get(&PseudoElement::After)
+            .map(|style| style.content.as_str()),
         Some("->")
     );
 
@@ -360,11 +369,15 @@ async fn test_pseudo_element_nodes() {
         .expect("after pseudo node missing");
 
     assert_eq!(
-        doc.nodes.get(&before_id).and_then(|node| node.text_content.as_deref()),
+        doc.nodes
+            .get(&before_id)
+            .and_then(|node| node.text_content.as_deref()),
         Some("<-")
     );
     assert_eq!(
-        doc.nodes.get(&after_id).and_then(|node| node.text_content.as_deref()),
+        doc.nodes
+            .get(&after_id)
+            .and_then(|node| node.text_content.as_deref()),
         Some("->")
     );
 }
@@ -382,4 +395,3 @@ fn style_value(
         .and_then(|map| map.get(property))
         .cloned()
 }
-

@@ -1,13 +1,24 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+/// Simple HTTP log entry for DevTools
+#[derive(Debug, Clone)]
+pub struct NetworkLogEntry {
+    pub url: String,
+    pub status: String,
+    pub source: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct NetworkEngine {
     cache: HashMap<String, String>,
     client: reqwest::Client,
+    logs: Vec<NetworkLogEntry>,
 }
 
 impl NetworkEngine {
+    const MAX_LOG_ENTRIES: usize = 256;
+
     pub fn new() -> Self {
         let client = reqwest::Client::builder()
             .user_agent("Zver/0.1.0 (Rust Browser Engine)")
@@ -47,6 +58,38 @@ impl NetworkEngine {
         Self {
             cache: HashMap::new(),
             client,
+            logs: Vec::new(),
+        }
+    }
+
+    fn record_network_event(&mut self, url: &str, status: String, source: String) {
+        if self.logs.len() >= Self::MAX_LOG_ENTRIES {
+            self.logs.remove(0);
+        }
+        self.logs.push(NetworkLogEntry {
+            url: url.to_string(),
+            status,
+            source,
+        });
+    }
+
+    pub fn logs(&self) -> &[NetworkLogEntry] {
+        &self.logs
+    }
+
+    fn categorize_resource(url: &str) -> &'static str {
+        let cleaned = url
+            .split(|c| ['?', '#'].contains(&c))
+            .next()
+            .unwrap_or(url)
+            .to_ascii_lowercase();
+
+        if cleaned.ends_with(".css") {
+            "CSS"
+        } else if cleaned.ends_with(".js") {
+            "JS"
+        } else {
+            "HTML"
         }
     }
 
@@ -55,20 +98,32 @@ impl NetworkEngine {
     }
 
     pub async fn fetch(&mut self, url: &str) -> Result<String, Box<dyn std::error::Error>> {
-        if let Some(cached) = self.cache.get(url) {
-            return Ok(cached.clone());
+        let source_label = Self::categorize_resource(url).to_string();
+
+        if let Some(cached) = self.cache.get(url).cloned() {
+            self.record_network_event(url, "OK (cache)".to_string(), source_label.clone());
+            return Ok(cached);
         }
 
-        let content = if url.starts_with("http://") || url.starts_with("https://") {
-            self.fetch_http_https(url).await?
+        let result = if url.starts_with("http://") || url.starts_with("https://") {
+            self.fetch_http_https(url).await
         } else if url.starts_with("file://") {
-            self.fetch_file(url).await?
+            self.fetch_file(url).await
         } else {
-            self.fetch_file(&format!("file://{}", url)).await?
+            self.fetch_file(&format!("file://{}", url)).await
         };
 
-        self.cache.insert(url.to_string(), content.clone());
-        Ok(content)
+        match &result {
+            Ok(content) => {
+                self.cache.insert(url.to_string(), content.clone());
+                self.record_network_event(url, "OK".to_string(), source_label.clone());
+            }
+            Err(err) => {
+                self.record_network_event(url, format!("ERR: {}", err), source_label.clone());
+            }
+        }
+
+        result
     }
 
     // Prefetch ресурсов асинхронно с использованием пула соединений

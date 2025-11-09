@@ -150,13 +150,17 @@ fn test_aspect_ratio_parsing() {
 
     let mut engine = StyleEngine::new();
     let result = engine.parse_css(css);
-    
+
     if let Err(e) = &result {
         eprintln!("Parse error: {:?}", e);
     }
-    
+
     assert!(result.is_ok());
-    assert_eq!(engine.media_rules.len(), 3, "Should parse all 3 media queries");
+    assert_eq!(
+        engine.media_rules.len(),
+        3,
+        "Should parse all 3 media queries"
+    );
 }
 
 #[tokio::test]
@@ -172,28 +176,36 @@ async fn test_media_query_application() {
 
     let mut engine = StyleEngine::new();
     engine.set_viewport(800.0, 600.0); // Устанавливаем viewport > 768px
-    
+
     let result = engine.parse_css(css);
     assert!(result.is_ok());
-    
+
     // Создаем простой DOM для тестирования
     let mut document = zver::dom::Document::new();
     let html = r#"<html><body><div class="box">Test</div></body></html>"#;
-    document.parse_html(html).await.expect("Failed to parse HTML");
-    
+    document
+        .parse_html(html)
+        .await
+        .expect("Failed to parse HTML");
+
     // Применяем стили
     let apply_result = engine.apply_styles(&document);
     assert!(apply_result.is_ok());
-    
+
     // Находим div с классом "box"
-    let div_id = document.nodes.iter()
+    let div_id = document
+        .nodes
+        .iter()
         .find(|(_, node)| {
-            node.attributes.get("class").map(|c| c.contains("box")).unwrap_or(false)
+            node.attributes
+                .get("class")
+                .map(|c| c.contains("box"))
+                .unwrap_or(false)
         })
         .map(|(id, _)| *id);
-    
+
     assert!(div_id.is_some(), "Элемент с классом 'box' не найден");
-    
+
     // Проверяем, что применился стиль из media query
     if let Some(styles) = engine.computed_styles.get(&div_id.unwrap()) {
         if let Some(bg_color) = styles.get("background-color") {

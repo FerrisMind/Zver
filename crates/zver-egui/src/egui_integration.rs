@@ -18,6 +18,7 @@ pub fn render_layout_results_in_painter(
     render_info: &[RenderInfo],
     resolved_styles: &HashMap<usize, ComputedStyle>,
     show_debug: bool,
+    highlighted_node: Option<usize>,
 ) {
     use egui::{Color32, FontFamily, FontId, Rect, Stroke, Vec2};
 
@@ -149,6 +150,8 @@ pub fn render_layout_results_in_painter(
             );
         }
     }
+
+    draw_selected_highlight_overlay(painter, offset, render_info, highlighted_node);
 }
 
 /// Чистовой рендеринг без отладочной информации
@@ -157,6 +160,7 @@ pub fn render_clean_layout_from_results(
     offset: egui::Pos2,
     render_info: &[RenderInfo],
     resolved_styles: &HashMap<usize, ComputedStyle>,
+    highlighted_node: Option<usize>,
 ) {
     use egui::text::{LayoutJob, TextFormat};
     use egui::{Color32, FontFamily, FontId, Rect, Vec2};
@@ -236,5 +240,33 @@ pub fn render_clean_layout_from_results(
         if is_bold {
             painter.galley(text_pos + Vec2::new(0.6, 0.0), galley, text_color);
         }
+    }
+
+    draw_selected_highlight_overlay(painter, offset, render_info, highlighted_node);
+}
+
+fn draw_selected_highlight_overlay(
+    painter: &egui::Painter,
+    offset: egui::Pos2,
+    render_info: &[RenderInfo],
+    highlighted_node: Option<usize>,
+) {
+    if let Some(node_id) = highlighted_node
+        && let Some(info) = render_info
+            .iter()
+            .find(|info| info.layout.node_id == node_id)
+    {
+        let width = info.layout.width.max(1.0);
+        let height = info.layout.height.max(1.0);
+        let rect = egui::Rect::from_min_size(
+            egui::pos2(offset.x + info.layout.x, offset.y + info.layout.y),
+            egui::Vec2::new(width, height),
+        );
+        painter.rect_stroke(
+            rect.expand(3.0),
+            0.0,
+            egui::Stroke::new(2.5, egui::Color32::from_rgb(255, 178, 66)),
+            egui::StrokeKind::Outside,
+        );
     }
 }

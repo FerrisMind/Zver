@@ -481,4 +481,3 @@ fn parse_declarations_from_str(source: &str) -> Result<Vec<Property>, PropertyPa
 
     Ok(declarations)
 }
-
