@@ -117,6 +117,7 @@ impl AddressBar {
         ui.horizontal(|ui| {
             if ui
                 .add_enabled(can_go_back, egui::Button::new(regular::ARROW_LEFT))
+                .on_hover_text("Go back")
                 .clicked()
             {
                 result.navigate_back = true;
@@ -124,28 +125,16 @@ impl AddressBar {
 
             if ui
                 .add_enabled(can_go_forward, egui::Button::new(regular::ARROW_RIGHT))
+                .on_hover_text("Go forward")
                 .clicked()
             {
                 result.navigate_forward = true;
             }
 
-            let devtools_icon = if self.devtools_open {
-                regular::BUG
-            } else {
-                regular::MAGNIFYING_GLASS
-            };
-            if ui
-                .button(devtools_icon)
-                .on_hover_text("Toggle DevTools")
-                .clicked()
-            {
-                self.toggle_devtools();
-            }
-
             ui.label("URL:");
             let response = ui.add(
                 egui::TextEdit::singleline(&mut self.url_input)
-                    .desired_width(400.0)
+                    .desired_width(ui.available_width() - 256.0)
                     .hint_text("Enter URL or select from dropdown"),
             );
 
@@ -156,13 +145,13 @@ impl AddressBar {
                 result.load_url = Some(self.url_input.clone());
             }
 
-            if ui.button(format!("{} Load", regular::FILE)).clicked() && !self.url_input.is_empty()
+            if ui.button(regular::ARROW_RIGHT).on_hover_text("Load URL").clicked() && !self.url_input.is_empty()
             {
                 result.load_url = Some(self.url_input.clone());
             }
 
             if ui
-                .button(format!("{} Reload", regular::ARROW_CLOCKWISE))
+                .button(regular::ARROW_CLOCKWISE)
                 .on_hover_text("Reload")
                 .clicked()
                 && !self.url_input.is_empty()
@@ -171,34 +160,49 @@ impl AddressBar {
             }
 
             if !self.html_files.is_empty() {
-                egui::ComboBox::from_label("Test Files")
-                    .selected_text(
-                        self.selected_html_index
-                            .and_then(|i| self.html_files.get(i))
-                            .and_then(|p| p.file_name())
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("Select HTML file"),
-                    )
-                    .show_ui(ui, |ui| {
-                        let html_files = self.html_files.clone();
-                        for (index, path) in html_files.iter().enumerate() {
-                            let file_name =
-                                path.file_name().and_then(|n| n.to_str()).unwrap_or("???");
+                        egui::ComboBox::from_label("Test Files")
+                            .selected_text(
+                                self.selected_html_index
+                                    .and_then(|i| self.html_files.get(i))
+                                    .and_then(|p| p.file_name())
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("Select HTML file"),
+                            )
+                            .show_ui(ui, |ui| {
+                                let html_files = self.html_files.clone();
+                                for (index, path) in html_files.iter().enumerate() {
+                                    let file_name =
+                                        path.file_name().and_then(|n| n.to_str()).unwrap_or("???");
 
-                            if ui
-                                .selectable_label(
-                                    self.selected_html_index == Some(index),
-                                    file_name,
-                                )
-                                .clicked()
-                            {
-                                self.selected_html_index = Some(index);
-                                self.set_url_from_path(path);
-                                result.load_url = Some(self.url_input.clone());
-                            }
-                        }
-                    });
-            }
+                                    if ui
+                                        .selectable_label(
+                                            self.selected_html_index == Some(index),
+                                            file_name,
+                                        )
+                                        .clicked()
+                                    {
+                                        self.selected_html_index = Some(index);
+                                        self.set_url_from_path(path);
+                                        result.load_url = Some(self.url_input.clone());
+                                    }
+                                }
+                            });
+                    }
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let button = if self.devtools_open {
+                    egui::Button::new(regular::BUG).fill(egui::Color32::from_rgb(100, 150, 255))
+                } else {
+                    egui::Button::new(regular::BUG)
+                };
+                let mut response = ui.add(button);
+                if self.devtools_open {
+                    response = response.on_hover_text("Toggle DevTools");
+                }
+                if response.clicked() {
+                    self.toggle_devtools();
+                }
+            });
         });
 
         result

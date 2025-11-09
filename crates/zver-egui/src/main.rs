@@ -10,7 +10,15 @@ use browser::{AddressBar, ConsoleEntry, DevTools, RenderView, TabManager};
 use phosphor_icons::{install, regular};
 
 fn main() -> eframe::Result {
-    let native_options = eframe::NativeOptions::default();
+    let icon_data = eframe::icon_data::from_png_bytes(&include_bytes!("../icon.png")[..])
+        .unwrap_or_default();
+    
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_icon(std::sync::Arc::new(icon_data)),
+        ..Default::default()
+    };
+    
     eframe::run_native(
         "Zver Browser",
         native_options,
@@ -85,7 +93,7 @@ impl eframe::App for ZverBrowser {
         // Right panel: DevTools (if open)
         if self.address_bar.devtools_open {
             egui::SidePanel::right("devtools_panel")
-                .min_width(300.0)
+                .min_width(296.0)
                 .default_width(380.0)
                 .resizable(true)
                 .show(ctx, |ui| {
@@ -166,7 +174,7 @@ impl ZverBrowser {
                         }
 
                         // Close button (only if more than 1 tab)
-                        if tab_count > 1 && ui.small_button(regular::X).clicked() {
+                        if tab_count > 1 && ui.small_button(regular::X).on_hover_text("Close tab").clicked() {
                             self.tab_manager.close_tab(index);
 
                             // Update DevTools after closing
@@ -181,7 +189,7 @@ impl ZverBrowser {
 
             // New tab button (if under limit)
             if tab_count < TabManager::MAX_TABS
-                && ui.button(format!("{} New Tab", regular::PLUS)).clicked()
+                && ui.button(regular::PLUS).on_hover_text("New Tab").clicked()
             {
                 self.tab_manager.add_tab();
             }
@@ -190,7 +198,7 @@ impl ZverBrowser {
 
             // Reload button
             if ui
-                .button(format!("{} Reload", regular::ARROW_CLOCKWISE))
+                .button(regular::ARROW_CLOCKWISE)
                 .on_hover_text("Reload active tab")
                 .clicked()
             {

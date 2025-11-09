@@ -334,7 +334,7 @@ impl DevTools {
         ui.separator();
         ui.label("Serialized HTML:");
         egui::ScrollArea::vertical()
-            .max_height(220.0)
+            .max_height(224.0)
             .show(ui, |ui| {
                 ui.add(
                     egui::TextEdit::multiline(&mut self.cached_html)
@@ -346,8 +346,15 @@ impl DevTools {
 
     fn render_dom_tree_node(&mut self, ui: &mut egui::Ui, node: &DomTreeNode, depth: usize) {
         ui.horizontal(|ui| {
-            ui.add_space(depth as f32 * 10.0);
+            ui.add_space(depth as f32 * 12.0);
             let is_selected = self.selected_node_id == Some(node.id);
+            
+            // Create label with custom styling for selection
+            if is_selected {
+                // Style visuals to remove stroke for selection
+                ui.visuals_mut().selection.stroke = egui::Stroke::NONE;
+            }
+            
             if ui.selectable_label(is_selected, &node.label).clicked() {
                 if is_selected {
                     self.selected_node_id = None;
@@ -372,15 +379,15 @@ impl DevTools {
         ui.heading("Console Logs");
 
         let horizontal_response = ui.horizontal(|ui| {
-            let text_response = ui.add(
+            let response = ui.add(
                 egui::TextEdit::singleline(&mut self.console_input)
-                    .desired_width(420.0)
+                    .desired_width(424.0)
                     .hint_text("Enter JS expression"),
             );
 
             let run_clicked = ui.button("Run").clicked();
             let clear_clicked = ui.button("Clear").clicked();
-            (text_response, run_clicked, clear_clicked)
+            (response, run_clicked, clear_clicked)
         });
         let (text_response, run_clicked, clear_clicked) = horizontal_response.inner;
 
@@ -417,7 +424,7 @@ impl DevTools {
         ui.separator();
 
         egui::ScrollArea::vertical()
-            .max_height(400.0)
+            .max_height(404.0)
             .stick_to_bottom(true)
             .show(ui, |ui| {
                 for (index, entry) in self.cached_console_logs.iter().enumerate() {
@@ -441,7 +448,7 @@ impl DevTools {
         }
 
         egui::ScrollArea::vertical()
-            .max_height(400.0)
+            .max_height(404.0)
             .show(ui, |ui| {
                 for entry in self.cached_network_logs.iter().rev() {
                     ui.horizontal_wrapped(|ui| {
