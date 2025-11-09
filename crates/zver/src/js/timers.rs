@@ -71,7 +71,7 @@ pub fn init_timers(
                 }
 
                 // Планируем таймер
-                let pending_clone = pending_callbacks.clone();
+                let _pending_clone = pending_callbacks.clone();
                 let handle = tokio::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
                     // Таймер сработал - callback будет выполнен в следующем tick_timers()

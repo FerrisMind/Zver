@@ -1,3 +1,5 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 use eframe::egui;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -10,7 +12,7 @@ use browser::{AddressBar, ConsoleEntry, DevTools, RenderView, TabManager};
 use phosphor_icons::{install, regular};
 
 fn main() -> eframe::Result {
-    let icon_data = eframe::icon_data::from_png_bytes(&include_bytes!("../icon.png")[..])
+    let icon_data = eframe::icon_data::from_png_bytes(&include_bytes!("../assets/icon.png")[..])
         .unwrap_or_default();
     
     let native_options = eframe::NativeOptions {

@@ -475,12 +475,12 @@ fn parse_keyframe_declarations<'i, 't>(
         // Используем правильную сериализацию вместо Debug форматирования
         let value = match super::serializer::serialize_value_tokens(input, true) {
             Ok(v) => v,
-            Err(e) => {
+            Err(_e) => {
                 // Логируем ошибку парсинга, но не паникуем
                 #[cfg(debug_assertions)]
                 eprintln!(
                     "Warning: Failed to serialize CSS value for '{}': {:?}",
-                    name, e
+                    name, _e
                 );
                 String::new()
             }
